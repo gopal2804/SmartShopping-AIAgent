@@ -91,12 +91,24 @@ export async function extractAmazon(url: URL): Promise<Product> {
   };
 }
 
-// The histogram exposes labels like "52 percent of reviews have 5 stars".
+// Histogram aria-labels are worded differently for signed-out and signed-in users:
+// "52 percent of reviews have 5 stars" vs "5 stars represent 52% of ratings" / "1 star represents 5% of ratings".
+const BREAKDOWN_LABELS: { re: RegExp; star: number; pct: number }[] = [
+  { re: /(\d{1,3}) percent of reviews have ([1-5]) stars?/i, star: 2, pct: 1 },
+  { re: /([1-5]) stars? represents? (\d{1,3})\s?% of ratings/i, star: 1, pct: 2 },
+];
+
 function ratingBreakdown(root: ParentNode): string {
   const counts: Record<number, number> = {};
   for (const el of Array.from(root.querySelectorAll("[aria-label]"))) {
-    const m = el.getAttribute("aria-label")?.match(/(\d+) percent of reviews have (\d) star/);
-    if (m) counts[Number(m[2])] = Number(m[1]);
+    const label = el.getAttribute("aria-label") ?? "";
+    for (const { re, star, pct } of BREAKDOWN_LABELS) {
+      const m = label.match(re);
+      if (m) {
+        counts[Number(m[star])] ??= Number(m[pct]);
+        break;
+      }
+    }
   }
   return formatBreakdown(counts);
 }
