@@ -10,7 +10,7 @@ A neutral shopping assistant for **Amazon.in** and **Flipkart**, as a Chrome sid
 - **Phase 3:** review trust check: unusual review patterns (bursts, copy-paste, unverified buyers, rewards for reviews), measured by code and explained without accusations.
 - **Phase 4:** price tracking and alerts: history recorded in your browser, a "good time to buy?" verdict from observed prices, and Chrome notifications for watched products.
 
-> **Status:** features are complete for v0.4. Current focus is **deployment** so anyone can install the extension: see [Deployment](#deployment). Today it runs locally (backend on `localhost:8000`, extension loaded unpacked).
+> **Status:** features complete; the backend is hosted on Render and the extension uses it (v0.5.0). Remaining deployment work: Chrome Web Store listing and daily health checks; see [Deployment](#deployment).
 
 ## Screenshots
 
@@ -42,14 +42,24 @@ Side panel ──fetch──▶ other site's search page (cross-site comparison,
 - **Security:** the API key never ships in the extension; CORS only allows `chrome-extension://` origins; scraped page text is fenced as untrusted data in prompts (prompt-injection defense).
 - **Cost:** analysis runs only when you click **Analyze**, and results are cached in memory by product + review count.
 
-## Setup
+## Install (no setup needed)
+
+The extension uses the hosted backend at `https://smart-shopping-agent-api.onrender.com`, so there's nothing to run locally.
+
+1. Download `smart-shopping-agent-vX.Y.Z.zip` from the [latest release](https://github.com/gopal2804/SmartShopping-AIAgent/releases/latest) and unzip it.
+2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and choose the unzipped folder.
+3. Pin the extension (puzzle-piece icon → pin) so its icon is in the toolbar.
+
+(A Chrome Web Store listing is the next deployment step.) The hosted backend is on a free plan that sleeps when idle: the first request after a while can take up to a minute, and the side panel says "Waking up the server…" meanwhile.
+
+## Development setup
 
 ### 1. Backend
 
 ```bash
 cd backend
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install -r requirements.txt -r requirements-dev.txt
 cp .env.example .env        # then put your OpenAI key in .env
 .venv/bin/uvicorn app.main:app --reload --port 8000
 ```
@@ -58,19 +68,14 @@ Check it: <http://localhost:8000/health>. Change `OPENAI_MODEL` in `.env` to use
 
 ### 2. Extension
 
-**Option A: prebuilt release (no Node needed).** Download `smart-shopping-agent-vX.Y.Z.zip` from the [latest release](https://github.com/gopal2804/SmartShopping-AIAgent/releases/latest) and unzip it.
-
-**Option B: build from source.**
-
 ```bash
 cd extension
 npm install
-npm run build        # output in extension/dist
+npm run build:local   # uses the local backend (http://localhost:8000)
+npm run build         # uses the hosted backend (VITE_BACKEND_URL in extension/.env.production)
 ```
 
-Then in Chrome: open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and pick the unzipped folder (Option A) or `extension/dist` (Option B). After each rebuild, click the reload icon on the extension card.
-
-Until the backend is hosted (see [Deployment](#deployment)), the extension needs the backend from step 1 running locally.
+Then in Chrome: open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and pick `extension/dist`. After each rebuild, click the reload icon on the extension card.
 
 ### 3. Use it
 
@@ -227,7 +232,7 @@ Goal: anyone can add the extension to Chrome and use it without running anything
    3. Paste the OpenAI key into `OPENAI_API_KEY` and click **Apply**.
    4. When the deploy is live, open `https://<service>.onrender.com/health`; it should return `{"status":"ok",…}`.
    5. The generated `ADMIN_TOKEN` (service → Environment) lets you read `GET /admin/usage`.
-4. **Point the extension at it.** Configurable backend URL, manifest `host_permissions` for the hosted domain, clear errors when the service is unavailable or a limit is reached.
+4. ✅ **Point the extension at it.** `npm run build` (and every release) bakes in `VITE_BACKEND_URL` from [`extension/.env.production`](extension/.env.production); `npm run build:local` uses `http://localhost:8000`. The manifest's `host_permissions` include the Render host (localhost was removed; local development works through the backend's CORS rule). Opening the side panel pings `/health` to wake the free server and shows "Waking up the server…" if it takes over 3 s. Limit, budget and connection problems are shown as plain messages. Released as v0.5.0.
 5. **Publish.** Privacy policy page, permission justifications, store screenshots and description; Chrome Web Store submission (starting unlisted is the lower-risk option).
 6. **Keep it working.** Daily check that extraction, matching and prices still work on a set of known Amazon/Flipkart products, alerting when a site changes its pages.
 

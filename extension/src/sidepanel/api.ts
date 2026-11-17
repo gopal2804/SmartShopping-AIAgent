@@ -18,6 +18,16 @@ const TOKEN_KEY = "installToken";
 
 let tokenRequest: Promise<string> | null = null;
 
+/** The hosted backend sleeps when idle; pinging /health on panel open starts the wake-up early. */
+export async function warmUp(): Promise<boolean> {
+  try {
+    const res = await fetch(`${BACKEND_URL}/health`, { signal: AbortSignal.timeout(90_000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Anonymous install token from POST /api/register, kept in chrome.storage.local. */
 function installToken(): Promise<string> {
   tokenRequest ??= (async () => {

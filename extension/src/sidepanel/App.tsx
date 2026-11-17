@@ -14,6 +14,7 @@ import {
   getActiveProduct,
   getMoreReviews,
   streamChat,
+  warmUp,
   type ComparisonDto,
   type PriceInsightDto,
 } from "./api";
@@ -103,11 +104,24 @@ const VERDICT_LABEL: Record<ProductAnalysis["verdict"], string> = {
 
 function backendError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
-  return msg === "Failed to fetch" ? `Cannot reach the backend at ${BACKEND_URL}. Is it running?` : msg;
+  return msg === "Failed to fetch"
+    ? `Can't reach the server (${new URL(BACKEND_URL).host}). Check your connection and try again in a moment.`
+    : msg;
 }
 
 export default function App() {
   const [page, setPage] = useState<PageState>({ kind: "loading" });
+  const [waking, setWaking] = useState<"no" | "waking" | "unreachable">("no");
+
+  // Wake the hosted backend as soon as the panel opens; only mention it if it's actually slow.
+  useEffect(() => {
+    const slow = setTimeout(() => setWaking("waking"), 3000);
+    warmUp().then((ok) => {
+      clearTimeout(slow);
+      setWaking(ok ? "no" : "unreachable");
+    });
+    return () => clearTimeout(slow);
+  }, []);
   const [analysis, setAnalysis] = useState<ProductAnalysis | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState("");
@@ -358,6 +372,15 @@ export default function App() {
           Rescan
         </button>
       </header>
+
+      {waking === "waking" && (
+        <p className="hint small">
+          Waking up the server… The free hosting sleeps when idle, so the first request can take up to a minute.
+        </p>
+      )}
+      {waking === "unreachable" && (
+        <p className="hint small">Can't reach the Smart Shopping Agent server right now. AI features may not work.</p>
+      )}
 
       {page.kind === "loading" && <p className="muted">Reading the page…</p>}
       {page.kind === "unsupported" && (

@@ -14,7 +14,7 @@ A Chrome extension (side panel) for **Amazon.in and Flipkart** plus a **FastAPI 
 - **Features are frozen** after Phase 4. The user asked to stop adding features.
 - **Next: deployment** so anyone can install the extension, driven step by step by the user's requirements. See "Deployment" in README. Don't start new features unless asked.
 - **Deployment decisions:** own OpenAI key behind per-install limits + monthly cap; **public** Chrome Web Store listing; backend on **Render**. Latest progress is at the bottom of docs/PROJECT_LOG.md.
-- **Deployment steps 1 (CI + releases) and 2 (API protection) are done**; v0.4.0 released. **Step 3 done:** backend live on Render (free plan) at **https://smart-shopping-agent-api.onrender.com**, auto-deploys from `main` after CI passes. Next is step 4 (build the extension with `VITE_BACKEND_URL`, add the host to `host_permissions`, release).
+- **Deployment steps 1 (CI + releases) and 2 (API protection) are done**; v0.4.0 released. **Step 3 done:** backend live on Render (free plan) at **https://smart-shopping-agent-api.onrender.com**, auto-deploys from `main` after CI passes. **Step 4 done:** `npm run build` targets Render (`extension/.env.production`), `npm run build:local` targets localhost; v0.5.0 released. Next is step 5 (Chrome Web Store), then step 6 (daily scraping health check).
 - Free plan: the service sleeps after 15 min idle (first request ~30–60 s) and usage counters reset on sleep; the OpenAI project budget is the real cap until upgrading to Starter + disk.
 
 ## API protection (backend)
@@ -52,7 +52,7 @@ extension/src/background.ts + offscreen.ts  chrome.alarms price checks; offscree
 # backend (needs backend/.env with OPENAI_API_KEY; never print or commit it)
 cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000
 # extension: build, then chrome://extensions → Load unpacked → extension/dist
-cd extension && npm run build && npm test          # 37 vitest tests (jsdom for HTML fixtures)
+cd extension && npm run build:local && npm test    # local backend; `npm run build` targets Render. 37 vitest tests
 cd backend && .venv/bin/python -m pytest tests          # 10 API-protection tests (needs requirements-dev.txt)
 cd backend && .venv/bin/python -m evals.guardrail_eval   # 22 chat checks
 cd backend && .venv/bin/python -m evals.match_eval --runs 3
