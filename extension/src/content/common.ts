@@ -155,6 +155,7 @@ export function formatBreakdown(countsByStar: Record<number, number>): string {
 
 export interface JsonLdProduct {
   name?: string;
+  sku?: string;
   brand?: string;
   price?: string;
   rating?: number | null;
@@ -199,6 +200,7 @@ export function readJsonLdProduct(root: ParentNode = document): JsonLdProduct | 
     const brand = typeof p.brand === "string" ? p.brand : (p.brand as Json | undefined)?.name;
     return {
       name: typeof p.name === "string" ? clean(p.name) : undefined,
+      sku: typeof p.sku === "string" ? p.sku : undefined,
       brand: typeof brand === "string" ? clean(brand) : undefined,
       price: offers?.price != null ? `₹${Number(offers.price).toLocaleString("en-IN")}` : undefined,
       rating: agg?.ratingValue != null ? Number(agg.ratingValue) : null,

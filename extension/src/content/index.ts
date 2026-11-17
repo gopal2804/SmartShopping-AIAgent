@@ -6,7 +6,7 @@ async function extract(): Promise<ExtractResponse> {
   const url = new URL(location.href);
   try {
     if (isAmazonProductPage(url)) return { ok: true, product: await extractAmazon(url) };
-    if (isFlipkartProductPage(url)) return { ok: true, product: extractFlipkart(url) };
+    if (isFlipkartProductPage(url)) return { ok: true, product: await extractFlipkart(url) };
     return { ok: false, reason: "not_product_page" };
   } catch (err) {
     return { ok: false, reason: `extract_failed: ${String(err)}` };

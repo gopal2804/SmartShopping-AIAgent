@@ -47,8 +47,30 @@ describe("parseProductPrice (Amazon)", () => {
 });
 
 describe("parseProductPrice (Flipkart)", () => {
-  it("reads the JSON-LD offer price", () => {
-    const html = `<script type="application/ld+json">[{"@type":"Product","name":"x","offers":{"@type":"Offer","price":69900}}]</script>`;
-    expect(parseProductPrice("flipkart", doc(html))).toBe(69900);
+  const ld = (sku: string, price: number) =>
+    `<script type="application/ld+json">[{"@type":"Product","name":"x","sku":"${sku}","offers":{"@type":"Offer","price":${price}}}]</script>`;
+  // Ad banner and a recommendation strip sit above the heading, as on the Honeywell Air Touch P2 page.
+  const page = (structured: string) => `
+    ${structured}
+    <div><span>PHILIPS AC4221/61 Covers Large Rooms</span><div>₹25,887</div></div>
+    <div><div>₹9,990</div></div>
+    <h1>Honeywell Air Touch P2 5 Stage Filtration</h1>
+    <div><div style="text-decoration: line-through">₹32,999</div><div>₹19,498</div></div>
+    <div><div>₹18,523</div></div>`;
+
+  it("reads the JSON-LD offer price for this product", () => {
+    expect(parseProductPrice("flipkart", doc(page(ld("APFGSPC7BQHCGJ8K", 19498))), "APFGSPC7BQHCGJ8K")).toBe(19498);
+  });
+
+  it("ignores stale structured data from another product and never reads the ad above the heading", () => {
+    expect(parseProductPrice("flipkart", doc(page(ld("PHILIPSAC4221", 25887))), "APFGSPC7BQHCGJ8K")).toBe(19498);
+  });
+
+  it("without structured data, takes the first non-struck price after the heading", () => {
+    expect(parseProductPrice("flipkart", doc(page("")), "APFGSPC7BQHCGJ8K")).toBe(19498);
+  });
+
+  it("returns null rather than guessing when there is no heading or structured data", () => {
+    expect(parseProductPrice("flipkart", doc(`<div>₹25,887</div>`), "X")).toBeNull();
   });
 });

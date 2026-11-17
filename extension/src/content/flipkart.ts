@@ -19,11 +19,48 @@ export function isFlipkartProductPage(url: URL): boolean {
   return url.hostname === "www.flipkart.com" && /\/(p|product-reviews)\/itm/.test(url.pathname);
 }
 
-function firstRupeeLeaf(): string {
-  for (const el of Array.from(document.querySelectorAll("div, span"))) {
-    if (el.children.length === 0 && /^₹\s?[\d,]+(\.\d+)?$/.test(textOf(el))) return textOf(el);
+/** Structured data for *this* product. Flipkart swaps pages in place, so data whose sku isn't the URL's pid is stale. */
+export function currentJsonLd(root: Document, pid: string) {
+  const ld = readJsonLdProduct(root);
+  return ld && (!pid || !ld.sku || ld.sku === pid) ? ld : null;
+}
+
+/**
+ * Fallback when structured data is missing: the first non-struck ₹ amount *after the product heading*.
+ * Ads and recommendation strips with their own prices sit above the heading, so "first ₹ on the page"
+ * picks the wrong product.
+ */
+export function priceAfterHeading(root: Document): string {
+  const h1 = root.querySelector("h1");
+  if (!h1) return "";
+  for (const el of Array.from(root.querySelectorAll("div, span"))) {
+    if (el.children.length !== 0 || !/^₹\s?[\d,]+(\.\d+)?$/.test(textOf(el))) continue;
+    if (!(h1.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+    if (!isStruck(el, root)) return textOf(el);
   }
   return "";
+}
+
+/** Crossed-out M.R.P. Parsed (fetched) documents have no computed styles, so markup and inline styles count too. */
+function isStruck(el: Element, root: Document): boolean {
+  if (el.closest("del, s, strike")) return true;
+  if (/line-through/.test(el.getAttribute("style") ?? "")) return true;
+  const view = root.defaultView;
+  return !!view && view.getComputedStyle(el).textDecorationLine.includes("line-through");
+}
+
+export function flipkartPagePrice(root: Document, pid: string): string {
+  return currentJsonLd(root, pid)?.price || priceAfterHeading(root);
+}
+
+/** After in-place navigation the new product's structured data can arrive a moment after the URL changes. */
+async function waitForJsonLd(pid: string, timeoutMs = 3000) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const ld = currentJsonLd(document, pid);
+    if ((ld && ld.price) || Date.now() >= deadline) return ld;
+    await new Promise((r) => setTimeout(r, 250));
+  }
 }
 
 const BADGE_RE = /Certified Buyer|Verified Purchase/g;
@@ -134,17 +171,18 @@ function fallbackTitle(): string {
   return h1 || clean(document.title.split(/ Reviews:| Price in India/)[0]);
 }
 
-export function extractFlipkart(url: URL): Product {
-  const ld = readJsonLdProduct();
+export async function extractFlipkart(url: URL): Promise<Product> {
+  const pid = url.searchParams.get("pid") ?? "";
+  const ld = await waitForJsonLd(pid);
   const ldReviews = ld?.reviews.filter((r) => r.body) ?? [];
 
   return {
     site: "flipkart",
     url: url.href,
-    product_id: url.searchParams.get("pid") ?? "",
+    product_id: pid,
     title: ld?.name || fallbackTitle(),
     brand: ld?.brand ?? "",
-    price: ld?.price || firstRupeeLeaf(),
+    price: ld?.price || priceAfterHeading(document),
     rating: ld?.rating ?? null,
     rating_count: ld?.ratingCount || (document.body.innerText.match(/[\d,]+ ratings and [\d,]+ reviews/)?.[0] ?? ""),
     rating_breakdown: ratingBreakdown(document),

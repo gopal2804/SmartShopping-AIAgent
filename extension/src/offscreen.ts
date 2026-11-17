@@ -14,7 +14,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   fetch(url.href, { credentials: "include" })
     .then((res) => (res.ok ? res.text() : ""))
     .then((html) => {
-      const price = html ? parseProductPrice(msg.site, new DOMParser().parseFromString(html, "text/html")) : null;
+      const doc = html ? new DOMParser().parseFromString(html, "text/html") : null;
+      const price = doc ? parseProductPrice(msg.site, doc, url.searchParams.get("pid") ?? "") : null;
       sendResponse({ price });
     })
     .catch(() => sendResponse({ price: null }));

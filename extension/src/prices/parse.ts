@@ -1,5 +1,6 @@
 import { readAmazonPrice } from "../content/amazon";
-import { readJsonLdProduct, textOf } from "../content/common";
+import { textOf } from "../content/common";
+import { flipkartPagePrice } from "../content/flipkart";
 import type { Site } from "../types";
 
 /** "₹1,299.00" → 1299. Returns null for empty or non-positive values. */
@@ -10,12 +11,12 @@ export function toNumber(price: string | null | undefined): number | null {
 }
 
 /** Current selling price from a product page (live or fetched), or null if unavailable. */
-export function parseProductPrice(site: Site, doc: Document): number | null {
+export function parseProductPrice(site: Site, doc: Document, pid = ""): number | null {
   if (site === "amazon") {
     if (doc.querySelector("#outOfStock") || /currently unavailable/i.test(textOf(doc.querySelector("#availability")))) {
       return null;
     }
     return toNumber(readAmazonPrice(doc));
   }
-  return toNumber(readJsonLdProduct(doc)?.price);
+  return toNumber(flipkartPagePrice(doc, pid));
 }
