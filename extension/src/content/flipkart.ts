@@ -1,5 +1,6 @@
 import type { Product, Review, ReviewSource } from "../types";
 import {
+  canonicalProductUrl,
   clean,
   collectReviewPages,
   dedupeReviews,
@@ -175,10 +176,11 @@ export async function extractFlipkart(url: URL): Promise<Product> {
   const pid = url.searchParams.get("pid") ?? "";
   const ld = await waitForJsonLd(pid);
   const ldReviews = ld?.reviews.filter((r) => r.body) ?? [];
+  const reviews = dedupeReviews([...reviewsFromDocument(document), ...ldReviews]);
 
   return {
     site: "flipkart",
-    url: url.href,
+    url: canonicalProductUrl(url, pid),
     product_id: pid,
     title: ld?.name || fallbackTitle(),
     brand: ld?.brand ?? "",
@@ -187,8 +189,8 @@ export async function extractFlipkart(url: URL): Promise<Product> {
     rating_count: ld?.ratingCount || (document.body.innerText.match(/[\d,]+ ratings and [\d,]+ reviews/)?.[0] ?? ""),
     rating_breakdown: ratingBreakdown(document),
     features: [],
-    reviews: dedupeReviews([...reviewsFromDocument(document), ...ldReviews]),
-    page_text: pageText(),
+    reviews,
+    page_text: pageText(reviews.length),
   };
 }
 

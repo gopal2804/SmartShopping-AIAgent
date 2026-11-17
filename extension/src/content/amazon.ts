@@ -1,5 +1,6 @@
 import type { Product, Review, ReviewSource } from "../types";
 import {
+  canonicalProductUrl,
   clean,
   dedupeReviews,
   fetchPage,
@@ -96,11 +97,13 @@ export async function extractAmazon(url: URL): Promise<Product> {
   const ratingEl = document.querySelector("#acrPopover");
   const ratingSource =
     ratingEl?.getAttribute("title") || textOf(first(["#acrPopover .a-icon-alt", '[data-hook="rating-out-of-text"]']));
+  const productId = url.pathname.match(ASIN_RE)?.[1] ?? "";
+  const reviews = dedupeReviews(extractReviews(document));
 
   return {
     site: "amazon",
-    url: url.href,
-    product_id: url.pathname.match(ASIN_RE)?.[1] ?? "",
+    url: canonicalProductUrl(url, productId),
+    product_id: productId,
     title: textOf(first(["#productTitle", '[data-hook="product-link"]', "#title"])),
     // Byline reads "Visit the Clovia Store" or "Brand: Xiaomi".
     brand: textOf(first(["#bylineInfo"]))
@@ -114,8 +117,8 @@ export async function extractAmazon(url: URL): Promise<Product> {
       .map(textOf)
       .filter(Boolean)
       .slice(0, 10),
-    reviews: dedupeReviews(extractReviews(document)),
-    page_text: pageText(),
+    reviews,
+    page_text: pageText(reviews.length),
   };
 }
 

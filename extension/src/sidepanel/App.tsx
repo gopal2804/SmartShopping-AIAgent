@@ -83,10 +83,13 @@ interface ExtraReviews extends ExtraData {
 const NO_EXTRA: ExtraReviews = { key: "", status: "idle", reviews: [], ratingBreakdown: "", pagesRead: 0, blocked: null };
 
 function mergeExtra(product: Product, extra: ExtraData): Product {
+  const reviews = extra.reviews.length ? dedupeReviews([...product.reviews, ...extra.reviews]) : product.reviews;
   return {
     ...product,
     rating_breakdown: product.rating_breakdown || extra.ratingBreakdown,
-    reviews: extra.reviews.length ? dedupeReviews([...product.reviews, ...extra.reviews]) : product.reviews,
+    reviews,
+    // The page-text fallback is only needed when reviews couldn't be read; don't send it otherwise.
+    page_text: reviews.length >= 3 ? "" : product.page_text,
   };
 }
 

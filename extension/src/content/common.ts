@@ -26,8 +26,25 @@ export function parseRating(s: string | null | undefined): number | null {
   return m ? Number(m[1]) : null;
 }
 
-export function pageText(): string {
-  return truncate((document.body?.innerText ?? "").replace(/\n{2,}/g, "\n"), MAX_PAGE_TEXT);
+// Lines that can identify the shopper: greetings, account menus, delivery address and PIN codes.
+const PERSONAL_LINE =
+  /(\bhello,|\bhi,|deliver(?:ing|y)? to|your account|account & lists|sign (?:in|out)|returns & orders|your orders|\bpin ?code\b|\b\d{6}\b)/i;
+
+/**
+ * Visible page text, sent only as a fallback when fewer than 3 reviews could be read (the backend ignores
+ * it otherwise). Personal lines are removed so names and delivery addresses never leave the browser.
+ */
+export function pageText(reviewsFound: number, root: Document = document): string {
+  if (reviewsFound >= 3 || !root.body) return "";
+  const lines = textLines(root.body).filter((line) => !PERSONAL_LINE.test(line));
+  return truncate(lines.join("\n"), MAX_PAGE_TEXT);
+}
+
+/** Product URL without tracking or search parameters (Flipkart URLs carry the search query). */
+export function canonicalProductUrl(url: URL, productId: string): string {
+  if (url.hostname === "www.amazon.in" && productId) return `${url.origin}/dp/${productId}`;
+  const pid = url.searchParams.get("pid");
+  return `${url.origin}${url.pathname}${pid ? `?pid=${encodeURIComponent(pid)}` : ""}`;
 }
 
 /**

@@ -1,7 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Smart Shopping Agent",
-  "version": "0.5.0",
+  "version": "0.5.1",
+  "minimum_chrome_version": "116",
+  "homepage_url": "https://github.com/gopal2804/SmartShopping-AIAgent",
   "description": "Neutral shopping assistant for Amazon.in and Flipkart: review analysis, cross-site prices, review trust and price alerts.",
   "permissions": ["sidePanel", "scripting", "storage", "alarms", "notifications", "offscreen"],
   "host_permissions": [
