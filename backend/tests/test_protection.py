@@ -41,8 +41,10 @@ def register(client) -> dict:
     return {"Authorization": f"Bearer {res.json()['token']}"}
 
 
-def test_health_is_public(client):
+def test_health_and_root_are_public(client):
     assert client.get("/health").json()["status"] == "ok"
+    root = client.get("/")
+    assert root.status_code == 200 and root.json()["service"] == "Smart Shopping Agent API"
 
 
 @pytest.mark.parametrize("headers", [{}, {"Authorization": "Bearer nonsense"}, {"Authorization": "Bearer v1.abc.123.badsig"}])

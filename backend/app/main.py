@@ -63,6 +63,18 @@ def guarded(bucket: str) -> Callable:
     return dependency
 
 
+@app.get("/")
+async def root() -> dict:
+    # People (and Render) open the bare URL; say what this is instead of a 404.
+    return {
+        "service": "Smart Shopping Agent API",
+        "status": "ok",
+        "about": "Backend for the Smart Shopping Agent Chrome extension (Amazon.in and Flipkart).",
+        "project": "https://github.com/gopal2804/SmartShopping-AIAgent",
+        "health": "/health",
+    }
+
+
 @app.get("/health")
 async def health() -> dict:
     return {"status": "ok", "model": llm.MODEL}
