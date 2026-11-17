@@ -4,6 +4,13 @@ A Chrome extension that analyzes product reviews on **Amazon.in** and **Flipkart
 
 **Phase 1 (this version):** review summary (verdict, pros/cons with frequency, best-for, confidence) + streaming product Q&A.
 
+## Screenshots
+
+| Verdict: Recommended | Verdict: Consider alternatives |
+|---|---|
+| ![Side panel recommending Clovia active shorts on Amazon.in: 4.2★, 60 reviews read, pros with how often reviewers mention them](docs/screenshots/review-analysis-recommended.png) | ![Side panel suggesting alternatives for a Xiaomi air purifier: cleans air well but reviewers report reliability and spare-part issues](docs/screenshots/review-analysis-consider-alternatives.png) |
+| Most reviewers praise fit and comfort, so it's recommended with the sizing caveat. | Air quality is praised, but repeated reports of failures after warranty push it to "consider alternatives". |
+
 ## Architecture
 
 ```
