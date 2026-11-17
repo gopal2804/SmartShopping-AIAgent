@@ -114,7 +114,40 @@ Measured: on synthetic sets with planted patterns every pattern is caught; on 40
 
 ## Price tracking and alerts
 
-Every product you view adds a price reading (and so does its confirmed match on the other site), so history builds up as you browse. The **Price tracker** card shows a small chart, the lowest/usual/highest observed price and a verdict; **Watch price** (optionally with a target) adds the product to a watchlist that a background job re-checks every 6 hours, sending a Chrome notification when the price drops.
+![Side panel on an Amazon.in JBL Flip 7 page (₹12,943): Flipkart has the same product at ₹12,999, "₹56 cheaper here on Amazon.in"; the Price tracker card shows "Not enough history yet: tracking since 17 Nov (1 reading)" with a target-price field, Watch price button and Reset history link](docs/screenshots/price-tracker.png)
+
+### What it does for you
+
+Store prices change often, and "-58% off" banners don't say whether today's price is actually good. The price tracker answers two questions using prices it has *seen*, not guesses:
+
+1. **"Is this a good price right now?"** It compares today's price with every price recorded for this product since you first viewed it.
+2. **"Tell me when it gets cheaper."** Click **Watch price** (optionally with a target like ₹11,999) and the extension re-checks the product in the background and sends a Chrome notification when the price drops, even with the side panel closed.
+
+It also works across stores: when the comparison card confirms the same product on the other site, that listing's price is recorded too, so you build history for both.
+
+### How it decides
+
+**Recording prices.** A reading (price + time) is saved whenever you view a product and every 6 hours for watched products. A repeat of the same price within 6 hours is skipped, and a reading more than 3× above or below the previous one is discarded as a parsing slip, not treated as a real change.
+
+**The verdict** (computed by code in [`src/prices/insight.ts`](extension/src/prices/insight.ts)), using the median of all readings as the "usual" price:
+
+| Verdict | When | Example (usual ₹12,999) |
+|---|---|---|
+| **Not enough history yet** | fewer than 3 readings, or less than 3 days of history | first visit today |
+| **Good time to buy** | today is the lowest seen *and* below usual, or ≥5% below usual | ₹12,349 or lower |
+| **Higher than usual** | ≥5% above usual | ₹13,649 or higher |
+| **Typical price** | anything in between | ₹12,999 |
+
+**Alerts** (in [`src/prices/alerts.ts`](extension/src/prices/alerts.ts)):
+
+| You set | You get notified when | Repeat alerts |
+|---|---|---|
+| A target price | the price is at or below your target | only if it falls even lower than the price you were last alerted at |
+| No target | the price drops ≥5% since the last reading | at most once a day, except a **new lowest price**, which always alerts |
+
+**Reset history** deletes a product's readings (for example after a bad reading) and starts again from the current price; your watch setting is kept.
+
+### How it's built
 
 ```
 side panel ──record──▶ chrome.storage.local ◀──record── background worker (chrome.alarms, every 6 h)
@@ -122,12 +155,14 @@ side panel ──record──▶ chrome.storage.local ◀──record── back
    └── deal verdict (code) ── chat gets the numbers          └─▶ alert rules (code) ─▶ chrome.notifications
 ```
 
-Guardrails:
+The background worker can't parse HTML, so it opens a hidden [offscreen document](extension/offscreen.html) to read the product page's price. Asking the chat "buy now or wait?" sends it the recorded numbers (current, lowest, usual, highest, readings, days, other-site price), never the raw page.
+
+### Guardrails
 
 - **Private by design.** History and the watchlist stay in `chrome.storage.local`; nothing is stored on a server, and tracking works without the backend running.
 - **No verdict on thin data.** "Good time to buy / Typical / Higher than usual" needs ≥3 readings over ≥3 days; before that it says "Not enough history yet". The verdict is computed in [`src/prices/insight.ts`](extension/src/prices/insight.ts), not by the model.
 - **No forecasts.** Neither the card nor the chat predicts future prices or sale events (Diwali, Big Billion Days…); the chat eval checks this.
-- **Bad readings don't become alerts.** A reading more than 3× away from the last one (e.g. an EMI price like "₹342/month" picked up instead of ₹6,990) is discarded as suspect. The Amazon price is read only from the buy-box block.
+- **Bad readings don't become alerts.** A reading more than 3× away from the last one (e.g. an EMI price like "₹342/month" picked up instead of ₹6,990) is discarded as suspect. On Amazon the price is read only from the "price to pay" element, never the struck-out M.R.P.; on Flipkart only from structured data whose product ID matches the page, or else the first non-struck price after the product heading (ads and recommendation strips above it are ignored).
 - **No notification spam.** A target alerts once (and again only at a lower price); without a target, a ≥5% drop alerts at most once a day unless it's a new lowest price. Up to 20 watched products, checked one at a time with pauses.
 
 Honest limitation: history starts when you first view a product. There's no free, legitimate source of past prices, so the verdict gets better the longer you use it.
