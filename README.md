@@ -215,11 +215,13 @@ Goal: anyone can add the extension to Chrome and use it without running anything
 5. **Publish.** Privacy policy page, permission justifications, store screenshots and description; Chrome Web Store submission (starting unlisted is the lower-risk option).
 6. **Keep it working.** Daily check that extraction, matching and prices still work on a set of known Amazon/Flipkart products, alerting when a site changes its pages.
 
-### Open decisions
+### Decisions (2026-11-17)
 
-- **Who pays for OpenAI usage:** a hosted key with limits, or users enter their own key.
-- **How people install:** public Chrome Web Store, unlisted listing (link-only), or a GitHub release zip with "Load unpacked".
-- **Where the backend runs:** which hosting provider (needs an account in your name).
+- **OpenAI usage:** the project's own key, behind per-install daily limits and a hard monthly spending cap. Users need nothing extra.
+- **Installation:** **public Chrome Web Store listing.** Requires a Chrome developer account (one-time US$5), a privacy policy, a single-purpose description and justification for each permission and host permission.
+- **Backend hosting:** **Render**, deployed from this GitHub repo, OpenAI key stored as a Render secret.
+
+Still to decide when we reach them: exact daily limits and monthly cap, the backend's domain, and the store listing text and screenshots.
 
 ## Roadmap
 

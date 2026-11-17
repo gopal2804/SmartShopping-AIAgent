@@ -40,4 +40,7 @@ Chronological record of what was built, why, and what was learned. Newest phase 
 
 ## 5. Next: deployment (started 2026-11-17)
 
-- User froze features and wants the extension installable by anyone. Plan and open decisions are in README → "Deployment". Decisions are made with the user step by step; record them here as they're made.
+- User froze features and wants the extension installable by anyone. Plan is in README → "Deployment". Decisions are made with the user step by step; record them here as they're made.
+- Added `CLAUDE.md` (context for new sessions) and this log.
+- **Decided:** OpenAI cost = project's own key with per-install limits + monthly cap · install = **public** Chrome Web Store listing · backend host = **Render**.
+- **Pending:** limit values and cap, backend domain, store listing assets. Next step to agree on: step 1 (CI + releases), then step 2 (API protection).

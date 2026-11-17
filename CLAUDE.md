@@ -12,7 +12,8 @@ A Chrome extension (side panel) for **Amazon.in and Flipkart** plus a **FastAPI 
 ## Current status (2026-11-17)
 
 - **Features are frozen** after Phase 4. The user asked to stop adding features.
-- **Next: deployment** so anyone can install the extension, driven step by step by the user's requirements. See "Deployment" in README for the plan and open decisions. Don't start new features unless asked.
+- **Next: deployment** so anyone can install the extension, driven step by step by the user's requirements. See "Deployment" in README. Don't start new features unless asked.
+- **Deployment decisions:** own OpenAI key behind per-install limits + monthly cap; **public** Chrome Web Store listing; backend on **Render**. Latest progress is at the bottom of docs/PROJECT_LOG.md.
 
 ## Layout
 
