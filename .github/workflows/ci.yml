@@ -42,9 +42,10 @@ jobs:
     name: Backend (Python ${{ matrix.python }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        # 3.9 is what runs locally; 3.12 is a likely hosting runtime.
-        python: ["3.9", "3.12"]
+        # Oldest available on GitHub runners (local dev is 3.9, which runners no longer offer) and the hosting runtime.
+        python: ["3.10", "3.12"]
     defaults:
       run:
         working-directory: backend
