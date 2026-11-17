@@ -12,6 +12,8 @@ A neutral shopping assistant for **Amazon.in** and **Flipkart**, as a Chrome sid
 
 > **Status:** features complete; the backend is hosted on Render and the extension uses it (v0.5.0). v0.5.1 is submitted to the Chrome Web Store and awaiting review. Remaining deployment work: daily health checks; see [Deployment](#deployment).
 
+**Interview guide:** architecture, design decisions, how every number was measured, and common questions: [docs/INTERVIEW_PREP.md](docs/INTERVIEW_PREP.md).
+
 ## Screenshots
 
 | Verdict: Recommended | Verdict: Consider alternatives |
@@ -187,7 +189,7 @@ Honest limitation: history starts when you first view a product. There's no free
 
 | Check | Command | Latest result |
 |---|---|---|
-| Extension unit tests: matching rules, safe truncation, price parsing, deal verdict, alert rules, background check (fake storage) | `cd extension && npm test` | 26/26 |
+| Extension unit tests: matching rules, safe truncation, price parsing, deal verdict, alert rules, background check (fake storage) | `cd extension && npm test` | 41/41 |
 | Matcher eval: 27 labelled pairs incl. variants, Pro/Lite near-misses, accessories, refurbished, combos, injection | `cd backend && .venv/bin/python -m evals.match_eval --runs 3` | 81/81, **0 false "same"** |
 | Trust eval: planted bursts/copies/rewards/unverified, edge cases, genuine sets, summary validator | `cd backend && .venv/bin/python -m evals.trust_eval` | 8/8 cases, **0/40 false alarms**, summaries 12/12 accepted |
 | Chat guardrails: off-topic, jailbreak, mixed, sizing choices, price honesty, "are reviews fake?", "buy now or wait?" (no forecasts) | `cd backend && .venv/bin/python -m evals.guardrail_eval` | 22/22 (3 runs) |

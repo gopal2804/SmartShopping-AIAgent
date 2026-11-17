@@ -1,6 +1,6 @@
 # Smart Shopping Agent: project context
 
-Read this first in a new session. Full chronological history: [docs/PROJECT_LOG.md](docs/PROJECT_LOG.md). User-facing docs: [README.md](README.md).
+Read this first in a new session. Full chronological history: [docs/PROJECT_LOG.md](docs/PROJECT_LOG.md). Interview guide: [docs/INTERVIEW_PREP.md](docs/INTERVIEW_PREP.md) (keep its numbers in sync with the README). User-facing docs: [README.md](README.md).
 
 ## What this is and why
 
@@ -53,7 +53,7 @@ extension/src/background.ts + offscreen.ts  chrome.alarms price checks; offscree
 # backend (needs backend/.env with OPENAI_API_KEY; never print or commit it)
 cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000
 # extension: build, then chrome://extensions → Load unpacked → extension/dist
-cd extension && npm run build:local && npm test    # local backend; `npm run build` targets Render. 37 vitest tests
+cd extension && npm run build:local && npm test    # local backend; `npm run build` targets Render. 41 vitest tests
 cd backend && .venv/bin/python -m pytest tests          # 10 API-protection tests (needs requirements-dev.txt)
 cd backend && .venv/bin/python -m evals.guardrail_eval   # 22 chat checks
 cd backend && .venv/bin/python -m evals.match_eval --runs 3
