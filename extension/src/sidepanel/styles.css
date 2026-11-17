@@ -115,6 +115,8 @@ button.ghost { background: transparent; }
 .price-diff { font-weight: 700; margin: 4px 0; }
 .price-diff.cheaper { color: var(--good); }
 .price-diff.pricier { color: var(--muted); }
+.price-diff.variant { color: var(--text); font-weight: 600; }
+.price-diff.variant .muted { font-weight: 400; }
 .listing-title { margin: 6px 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .open-link { color: var(--accent); font-weight: 600; text-decoration: none; }
 .tiny { font-size: 11px; margin: 6px 0 0; }

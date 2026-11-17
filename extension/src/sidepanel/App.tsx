@@ -498,7 +498,18 @@ function CompareCard({
               : `${rupees(diff)} cheaper here on ${here}`}
         </p>
       )}
-      {verdict === "same" && diff == null && listing.price != null && (
+      {verdict === "variant" && diff != null && (
+        // Shown neutrally (not green): a different variant's price isn't a like-for-like comparison.
+        <p className="price-diff variant">
+          {diff === 0
+            ? `Same price as ${here}`
+            : diff < 0
+              ? `${rupees(-diff)} lower on ${other}`
+              : `${rupees(diff)} higher on ${other}`}
+          <span className="muted small"> · may be a different variant, so prices may not be directly comparable</span>
+        </p>
+      )}
+      {diff == null && listing.price != null && (
         <p className="muted small">Couldn't read the price on this {here} page, so no difference is shown.</p>
       )}
       {differences.length > 0 && <p className="small">Differs: {differences.join(" · ")}</p>}
