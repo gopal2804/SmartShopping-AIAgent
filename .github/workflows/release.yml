@@ -1,0 +1,51 @@
+name: Release
+
+# Push a tag like v0.4.0 (matching extension/public/manifest.json) to publish a GitHub Release
+# with the built extension attached as a zip.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Tag must match the manifest version
+        run: |
+          manifest_version=$(node -p "require('./public/manifest.json').version")
+          if [ "v${manifest_version}" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match manifest version ${manifest_version}" >&2
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+      - name: Zip the extension
+        run: |
+          zip_name="smart-shopping-agent-${GITHUB_REF_NAME}.zip"
+          (cd dist && zip -qr "../${zip_name}" .)
+          echo "ZIP_NAME=${zip_name}" >> "$GITHUB_ENV"
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" "${ZIP_NAME}" \
+            --title "Smart Shopping Agent ${GITHUB_REF_NAME}" \
+            --generate-notes \
+            --notes "Install: download ${ZIP_NAME}, unzip it, open chrome://extensions, turn on Developer mode, click Load unpacked and choose the unzipped folder. The extension needs the backend running (see README)."

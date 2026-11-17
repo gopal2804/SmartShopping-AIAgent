@@ -6,8 +6,9 @@ Run from backend/:  .venv/bin/python -m evals.trust_eval [--genuine-seeds 20] [-
 import argparse
 import asyncio
 import random
+import sys
 from datetime import date, timedelta
-from typing import List
+from typing import List, Tuple
 
 from dotenv import load_dotenv
 
@@ -112,7 +113,8 @@ CASES = [
 ]
 
 
-def run_deterministic(genuine_seeds: int) -> List[TrustReport]:
+def run_deterministic(genuine_seeds: int) -> Tuple[List[TrustReport], int]:
+    """Returns the reports and the number of failures (failed cases + false alarms)."""
     passed, reports = 0, []
     for name, reviews, levels, must in CASES:
         report = trust.assess(reviews, today=TODAY)
@@ -132,10 +134,10 @@ def run_deterministic(genuine_seeds: int) -> List[TrustReport]:
     print(f"false alarms on genuine review sets: {len(false_alarms)}/{genuine_seeds * 2}")
     for fa in false_alarms[:5]:
         print("   ", fa)
-    return reports
+    return reports, (len(CASES) - passed) + len(false_alarms)
 
 
-def run_validator_unit_checks() -> None:
+def run_validator_unit_checks() -> int:
     report = TrustReport(
         level="some_concerns", reviews_checked=203, checks=[],
         signals=[TrustSignal(id="incentive_mentions", severity="caution",
@@ -149,6 +151,7 @@ def run_validator_unit_checks() -> None:
     ]
     ok = sum(llm.summary_is_safe(text, report) == expect for text, expect in cases)
     print(f"summary validator unit checks: {ok}/{len(cases)}")
+    return len(cases) - ok
 
 
 async def run_llm(reports: List[TrustReport], runs: int) -> None:
@@ -172,10 +175,13 @@ def main() -> None:
     parser.add_argument("--no-llm", action="store_true")
     parser.add_argument("--llm-runs", type=int, default=3)
     args = parser.parse_args()
-    reports = run_deterministic(args.genuine_seeds)
-    run_validator_unit_checks()
+    reports, failures = run_deterministic(args.genuine_seeds)
+    failures += run_validator_unit_checks()
     if not args.no_llm:
         asyncio.run(run_llm(reports, args.llm_runs))
+    if failures:
+        print(f"\n{failures} failure(s)")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
