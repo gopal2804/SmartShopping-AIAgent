@@ -1,0 +1,42 @@
+# Render Blueprint for the backend API. In Render: New → Blueprint → pick this repo.
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: smart-shopping-agent-api
+    runtime: python
+    # Free plan for now: sleeps after 15 min idle (first request ~30–60 s) and has no disk, so usage
+    # counters and the monthly spend total reset when it sleeps. Keep a budget on the OpenAI project.
+    # To upgrade before sharing widely: set `plan: starter` and uncomment the disk + USAGE_DB_PATH below.
+    plan: free
+    region: singapore
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    # Deploy a new commit only after GitHub CI checks pass.
+    autoDeployTrigger: checksPass
+    # disk:
+    #   name: usage-data
+    #   mountPath: /var/data
+    #   sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: OPENAI_API_KEY
+        sync: false # entered in the Render dashboard, never committed
+      - key: OPENAI_MODEL
+        value: gpt-6-luna
+      - key: OPENAI_CHAT_REASONING_EFFORT
+        value: none
+      - key: OPENAI_ANALYSIS_REASONING_EFFORT
+        value: low
+      - key: APP_SECRET
+        generateValue: true # signs install tokens; stable across deploys
+      - key: ADMIN_TOKEN
+        generateValue: true # for GET /admin/usage (X-Admin-Token header)
+      - key: TRUST_PROXY
+        value: "1" # Render's proxy sets X-Forwarded-For
+      - key: MONTHLY_BUDGET_USD
+        value: "10"
+      # - key: USAGE_DB_PATH
+      #   value: /var/data/usage.db

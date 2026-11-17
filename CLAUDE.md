@@ -14,7 +14,7 @@ A Chrome extension (side panel) for **Amazon.in and Flipkart** plus a **FastAPI 
 - **Features are frozen** after Phase 4. The user asked to stop adding features.
 - **Next: deployment** so anyone can install the extension, driven step by step by the user's requirements. See "Deployment" in README. Don't start new features unless asked.
 - **Deployment decisions:** own OpenAI key behind per-install limits + monthly cap; **public** Chrome Web Store listing; backend on **Render**. Latest progress is at the bottom of docs/PROJECT_LOG.md.
-- **Deployment steps 1 (CI + releases) and 2 (API protection) are done**; v0.4.0 released. Next is step 3 (host on Render).
+- **Deployment steps 1 (CI + releases) and 2 (API protection) are done**; v0.4.0 released. **Step 3 (Render) is configured** (`render.yaml`, free plan for now) and waits for the user to apply the Blueprint and share the service URL. Then: verify the live API, then step 4 (build the extension with `VITE_BACKEND_URL`, add the host to `host_permissions`).
 
 ## API protection (backend)
 
