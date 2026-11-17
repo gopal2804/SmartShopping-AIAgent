@@ -92,6 +92,8 @@ Live example (Nov 2026): OnePlus Nord CE6 Lite 8 GB/128 GB Vivid Mint was ₹30,
 
 ## Review trust check
 
+![Side panel on an Amazon.in screen protector: Review trust "No unusual patterns" across 111 reviews, with all four checks passed (no bursts among 50 dated 5-star reviews, no near-duplicate wording, 100% verified, no reward mentions), plus "No matching listing found" on Flipkart and a "Consider alternatives" analysis](docs/screenshots/review-trust.png)
+
 Once the review sample has loaded (~200 reviews), the side panel shows a **Review trust** card. The patterns are measured by plain code in [`backend/app/trust.py`](backend/app/trust.py), so every number can be traced back to the reviews; the model only writes a one-line summary of those numbers.
 
 | Signal | Flagged when | Guard against false alarms |
