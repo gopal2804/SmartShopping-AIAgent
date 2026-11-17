@@ -233,7 +233,16 @@ Goal: anyone can add the extension to Chrome and use it without running anything
    4. When the deploy is live, open `https://<service>.onrender.com/health`; it should return `{"status":"ok",…}`.
    5. The generated `ADMIN_TOKEN` (service → Environment) lets you read `GET /admin/usage`.
 4. ✅ **Point the extension at it.** `npm run build` (and every release) bakes in `VITE_BACKEND_URL` from [`extension/.env.production`](extension/.env.production); `npm run build:local` uses `http://localhost:8000`. The manifest's `host_permissions` include the Render host (localhost was removed; local development works through the backend's CORS rule). Opening the side panel pings `/health` to wake the free server and shows "Waking up the server…" if it takes over 3 s. Limit, budget and connection problems are shown as plain messages. Released as v0.5.0.
-5. **Publish on the Chrome Web Store** (submitted for review 2026-11-17, item ID `glgigibfcofhkkekbeahefhkiljneknm`). [Privacy policy](docs/PRIVACY.md) · [listing kit](docs/store/LISTING.md) (description, single purpose, permission justifications, data-use answers, review notes) · 1280×800 screenshots and promo tile in [`docs/store/`](docs/store/). Before writing the policy, the data sent to the backend was tightened: the page-text fallback is only sent when fewer than 3 reviews were read and has greeting/account/delivery-address/PIN lines removed in the browser, and product URLs are reduced to the product ID (no search terms or tracking). Manifest declares `minimum_chrome_version: 116` and the homepage. Package: the v0.5.1 release zip.
+5. ✅ **Publish on the Chrome Web Store** (submitted for review 2026-11-17, item ID `glgigibfcofhkkekbeahefhkiljneknm`). [Privacy policy](docs/PRIVACY.md) · [listing kit](docs/store/LISTING.md) (description, single purpose, permission justifications, data-use answers, review notes) · 1280×800 screenshots and 440×280 promo tile in [`docs/store/`](docs/store/). Before writing the policy, the data sent to the backend was tightened: the page-text fallback is only sent when fewer than 3 reviews were read and has greeting/account/delivery-address/PIN lines removed in the browser, and product URLs are reduced to the product ID (no search terms or tracking). Manifest declares `minimum_chrome_version: 116` and the homepage. Package: the v0.5.1 release zip.
+
+   How it was submitted (repeat for future versions):
+   1. Open the [Developer Dashboard](https://chrome.google.com/webstore/devconsole), sign in with Google, accept the developer agreement and pay the one-time US$5 registration fee.
+   2. **Account** page: enter a **contact email** and verify it (Google emails a link). Submission is blocked until this is done; the email can be shown publicly as the developer contact.
+   3. **New item** → upload `smart-shopping-agent-vX.Y.Z.zip` from the [GitHub release](https://github.com/gopal2804/SmartShopping-AIAgent/releases/latest) (Assets section; upload the zip as is, don't unzip it).
+   4. **Store listing:** summary, description and category from the listing kit; icon `extension/public/icons/icon128.png`; the five screenshots from `docs/store/` in order (exactly 1280×800, no transparency; the README screenshots are a different size and get rejected); small promo tile `promo-small.png`. Marquee tile left empty (optional). **Official URL** left empty (it only accepts a site verified in Google Search Console); Homepage URL = this repo, Support URL = its Issues page.
+   5. **Privacy:** single-purpose statement, one justification per permission, and **one** host-permission justification covering amazon.in, flipkart.com and the Render backend. Remote code: No. Data usage: only **Website content** and **User activity** ticked. Location left unticked: the IP is only used briefly to rate-limit registrations and appears in hosting logs, both disclosed in the privacy policy. Tick the three certifications; privacy policy URL = `docs/PRIVACY.md` on GitHub.
+   6. **Distribution:** Public, Free, all regions (or India). **Save draft** → **Submit for review**. If the button is greyed out, **"Why can't I submit?"** lists what's missing. Review usually takes a few days; Google emails the result.
+   7. **Updating later:** bump the version, tag a release, then in the dashboard open the item → **Package** → upload the new zip → submit again. Each update is reviewed too.
 6. **Keep it working.** Daily check that extraction, matching and prices still work on a set of known Amazon/Flipkart products, alerting when a site changes its pages.
 
 ### API protection
@@ -253,13 +262,27 @@ Measured cost: one real review analysis (~2,600 input + ~570 output tokens on `g
 
 Honest limits: an anonymous extension can't be fully locked down (anyone can install it and get a token), so the **spend cap is the real backstop**. Also set a monthly budget on the OpenAI project in the OpenAI dashboard. Counters live in SQLite (`USAGE_DB_PATH`); on a host without a persistent disk they reset on redeploy, which loosens limits but never raises the OpenAI-side budget. Tests: `cd backend && .venv/bin/pip install -r requirements-dev.txt && .venv/bin/python -m pytest tests` (10 tests, no OpenAI calls; also run in CI).
 
+### What this costs (owner's bills)
+
+Users pay nothing. Everything below is billed to the project owner.
+
+| Service | What it's for | Cost now | Notes |
+|---|---|---|---|
+| **Chrome Web Store** developer account | Publishing the extension | **US$5 once** (paid) | No yearly fee, no fee per update or per install. |
+| **OpenAI API** | Review analysis, chat, product matching, trust summaries | **Pay per use**, at most **US$10/month** | ~US$0.0005 per review analysis (≈2,000 analyses per US$1); chat answers and matches cost less each. The backend stops AI features for the rest of the month at the US$10 cap (`MONTHLY_BUDGET_USD`). Also set a **monthly budget on the OpenAI project** (platform.openai.com → Settings → Limits) as a second safety net, because the backend's counter resets when the free server sleeps. |
+| **Render** (backend hosting) | Runs the FastAPI server | **US$0** on the free plan | Free plan sleeps after 15 min idle (first request waits ~30–60 s) and loses usage counters on sleep. Recommended before many users: **Starter** (US$7/month) + 1 GB disk (US$0.25/month) ≈ **US$7.25/month**; a two-line change in `render.yaml`. |
+| **GitHub** | Code, CI (Actions), releases, privacy policy hosting | **US$0** | Free for public repositories. |
+| Domain name | — | **US$0** | Not needed: the backend uses the free `onrender.com` address and the privacy policy is on GitHub. |
+
+**Total today:** US$5 already paid + OpenAI usage (pennies at current use, capped at US$10/month). **After the recommended Render upgrade:** about US$7.25/month + OpenAI usage (still capped at US$10), so **at most ~US$17.25/month**. To spend less, lower `MONTHLY_BUDGET_USD` or the daily limits in Render → Environment; no code change needed.
+
 ### Decisions (2026-11-17)
 
 - **OpenAI usage:** the project's own key, behind per-install daily limits and a hard monthly spending cap. Users need nothing extra.
 - **Installation:** **public Chrome Web Store listing.** Requires a Chrome developer account (one-time US$5), a privacy policy, a single-purpose description and justification for each permission and host permission.
 - **Backend hosting:** **Render**, deployed from this GitHub repo, OpenAI key stored as a Render secret. **Free plan to start**, upgrade to Starter + disk (~US$7.25/month) before sharing widely.
 
-Still to decide when we reach them: exact daily limits and monthly cap, the backend's domain, and the store listing text and screenshots.
+Defaults in use (can be changed any time in Render → Environment): daily limits analyze 20 · chat 100 · match 60 · trust 60 per install, US$10 monthly cap, no custom domain. The store listing was written and submitted on 2026-11-17.
 
 ## Roadmap
 
