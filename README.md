@@ -69,6 +69,8 @@ When you analyze or ask, the extension also fetches up to 20 review pages in the
 
 ## Cross-site comparison
 
+![Side panel on an Amazon.in product (Jockey 1529, ₹339) showing the same product found on Flipkart at ₹359: "₹20 cheaper here on Amazon.in", with a link to the Flipkart listing](docs/screenshots/cross-site-comparison.png)
+
 When a product is detected, the side panel looks for the same product on the other site:
 
 ```
