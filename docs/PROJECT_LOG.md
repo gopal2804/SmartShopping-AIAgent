@@ -43,4 +43,6 @@ Chronological record of what was built, why, and what was learned. Newest phase 
 - User froze features and wants the extension installable by anyone. Plan is in README → "Deployment". Decisions are made with the user step by step; record them here as they're made.
 - Added `CLAUDE.md` (context for new sessions) and this log.
 - **Decided:** OpenAI cost = project's own key with per-install limits + monthly cap · install = **public** Chrome Web Store listing · backend host = **Render**.
-- **Pending:** limit values and cap, backend domain, store listing assets. Next step to agree on: step 1 (CI + releases), then step 2 (API protection).
+- **Pending:** limit values and cap, backend domain, store listing assets.
+- **Step 1 done: CI + releases.** `.github/workflows/ci.yml` (extension tests/build; backend imports + `trust_eval --no-llm`, which now exits non-zero on failure) and `release.yml` (tag `vX.Y.Z` must match manifest → zip attached to a GitHub Release). Python 3.9 isn't available on GitHub runners any more, so CI uses 3.10 + 3.12 (local is still 3.9). Released **v0.4.0**: https://github.com/gopal2804/SmartShopping-AIAgent/releases/tag/v0.4.0. README has CI/release badges and "install from release" instructions.
+- **Next: step 2, protect the API** (install tokens, per-install limits, monthly cap, cost logging). Limit values still to agree with the user.

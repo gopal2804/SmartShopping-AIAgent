@@ -1,5 +1,8 @@
 # Smart Shopping Agent
 
+[![CI](https://github.com/gopal2804/SmartShopping-AIAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/gopal2804/SmartShopping-AIAgent/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/gopal2804/SmartShopping-AIAgent)](https://github.com/gopal2804/SmartShopping-AIAgent/releases/latest)
+
 A neutral shopping assistant for **Amazon.in** and **Flipkart**, as a Chrome side panel. It reads a balanced sample of reviews, gives an honest verdict, answers questions about the product, and finds the same product on the other site to compare prices: something the stores' own assistants have no reason to do.
 
 - **Phase 1:** review summary (verdict, pros/cons with frequency, best-for, confidence) + streaming product Q&A.
@@ -55,13 +58,19 @@ Check it: <http://localhost:8000/health>. Change `OPENAI_MODEL` in `.env` to use
 
 ### 2. Extension
 
+**Option A: prebuilt release (no Node needed).** Download `smart-shopping-agent-vX.Y.Z.zip` from the [latest release](https://github.com/gopal2804/SmartShopping-AIAgent/releases/latest) and unzip it.
+
+**Option B: build from source.**
+
 ```bash
 cd extension
 npm install
-npm run build
+npm run build        # output in extension/dist
 ```
 
-Then in Chrome: open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and pick the `extension/dist` folder. After each rebuild, click the reload icon on the extension card.
+Then in Chrome: open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and pick the unzipped folder (Option A) or `extension/dist` (Option B). After each rebuild, click the reload icon on the extension card.
+
+Until the backend is hosted (see [Deployment](#deployment)), the extension needs the backend from step 1 running locally.
 
 ### 3. Use it
 
@@ -208,7 +217,7 @@ Goal: anyone can add the extension to Chrome and use it without running anything
 
 ### Planned steps
 
-1. **CI and releases.** GitHub Actions runs extension tests + build and backend checks on every push; tagged versions attach a ready-to-install extension zip.
+1. ✅ **CI and releases.** [`ci.yml`](.github/workflows/ci.yml) runs on every push and pull request: extension unit tests + type-check + build, and backend import checks + the code-only trust eval on Python 3.10 and 3.12. [`release.yml`](.github/workflows/release.yml) runs when a `vX.Y.Z` tag is pushed: it checks the tag matches `manifest.json`, re-runs tests and build, and attaches `smart-shopping-agent-vX.Y.Z.zip` to a GitHub Release. To release: bump `version` in `extension/public/manifest.json` and `extension/package.json`, commit, then `git tag -a vX.Y.Z -m "…" && git push origin vX.Y.Z`. The OpenAI-backed evals stay manual (they cost money and need the API key).
 2. **Protect the API.** Anonymous per-install token, per-install daily limits, a global daily OpenAI spend cap, request/cost logging. (Today CORS restricts browsers but isn't authentication.)
 3. **Host the backend.** Container image, deployed to a managed host (e.g. Render, Railway or Fly.io) with the OpenAI key as a secret; health checks.
 4. **Point the extension at it.** Configurable backend URL, manifest `host_permissions` for the hosted domain, clear errors when the service is unavailable or a limit is reached.

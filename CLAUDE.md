@@ -14,6 +14,13 @@ A Chrome extension (side panel) for **Amazon.in and Flipkart** plus a **FastAPI 
 - **Features are frozen** after Phase 4. The user asked to stop adding features.
 - **Next: deployment** so anyone can install the extension, driven step by step by the user's requirements. See "Deployment" in README. Don't start new features unless asked.
 - **Deployment decisions:** own OpenAI key behind per-install limits + monthly cap; **public** Chrome Web Store listing; backend on **Render**. Latest progress is at the bottom of docs/PROJECT_LOG.md.
+- **Deployment step 1 (CI + releases) is done**; v0.4.0 released. Next is step 2 (API protection).
+
+## CI / releases
+
+- `.github/workflows/ci.yml` must stay green: extension `npm test` + `npm run build`; backend import check + `python -m evals.trust_eval --no-llm` on Python 3.10 and 3.12.
+- Release: bump `version` in `extension/public/manifest.json` and `extension/package.json` (must match), commit, `git tag -a vX.Y.Z -m "…" && git push origin vX.Y.Z`. `release.yml` attaches the zip.
+- Check CI with `gh run list --workflow ci.yml --limit 1` / `gh run view <id> --log-failed`.
 
 ## Layout
 
