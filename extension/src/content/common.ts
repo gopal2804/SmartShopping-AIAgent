@@ -181,8 +181,8 @@ function findProductNode(node: unknown): Json | null {
   return null;
 }
 
-export function readJsonLdProduct(): JsonLdProduct | null {
-  for (const script of Array.from(document.querySelectorAll('script[type="application/ld+json"]'))) {
+export function readJsonLdProduct(root: ParentNode = document): JsonLdProduct | null {
+  for (const script of Array.from(root.querySelectorAll('script[type="application/ld+json"]'))) {
     let parsed: unknown;
     try {
       parsed = JSON.parse(script.textContent ?? "");

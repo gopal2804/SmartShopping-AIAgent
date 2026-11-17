@@ -18,6 +18,15 @@ import {
 
 const ASIN_RE = /\/(?:dp|gp\/product|product-reviews)\/([A-Z0-9]{10})/;
 
+// The buy-box price. Scoped to the core price block so EMI ("₹342/month") and coupon prices aren't picked up.
+export const AMAZON_PRICE_SELECTORS = [
+  "#corePriceDisplay_desktop_feature_div .priceToPay .a-offscreen",
+  "#corePriceDisplay_desktop_feature_div .a-price .a-offscreen",
+  "#corePrice_feature_div .a-offscreen",
+  "#priceblock_dealprice",
+  "#priceblock_ourprice",
+];
+
 export function isAmazonProductPage(url: URL): boolean {
   return url.hostname === "www.amazon.in" && ASIN_RE.test(url.pathname);
 }
@@ -77,15 +86,7 @@ export async function extractAmazon(url: URL): Promise<Product> {
     brand: textOf(first(["#bylineInfo"]))
       .replace(/^(Visit the|Brand:)\s*/i, "")
       .replace(/\s*Store$/i, ""),
-    price: textOf(
-      first([
-        "#corePriceDisplay_desktop_feature_div .priceToPay .a-offscreen",
-        "#corePriceDisplay_desktop_feature_div .a-price .a-offscreen",
-        "#corePrice_feature_div .a-offscreen",
-        "#priceblock_dealprice",
-        "#priceblock_ourprice",
-      ])
-    ),
+    price: textOf(first(AMAZON_PRICE_SELECTORS)),
     rating: parseRating(ratingSource),
     rating_count: textOf(first(["#acrCustomerReviewText", '[data-hook="total-review-count"]'])),
     rating_breakdown: ratingBreakdown(document),

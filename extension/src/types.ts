@@ -110,5 +110,7 @@ export type MoreReviewsResponse =
   | { ok: true; reviews: Review[]; pagesRead: number; blocked: "login" | null; ratingBreakdown: string }
   | { ok: false; reason: string };
 
+export const PARSE_PRICE_MESSAGE = "SSA_PARSE_PRICE";
+export const CHECK_PRICES_MESSAGE = "SSA_CHECK_PRICES";
 export const EXTRACT_MESSAGE = "SSA_EXTRACT_PRODUCT";
 export const MORE_REVIEWS_MESSAGE = "SSA_FETCH_MORE_REVIEWS";

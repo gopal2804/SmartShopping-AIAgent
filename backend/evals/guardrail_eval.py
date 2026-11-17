@@ -15,6 +15,7 @@ from app.schemas import (  # noqa: E402
     ChatMessage,
     ChatRequest,
     Comparison,
+    PriceHistorySummary,
     Product,
     TrustCheck,
     TrustReport,
@@ -88,6 +89,51 @@ PRICE = [
 ]
 
 
+# "Buy now or wait?" with recorded price history: only recorded numbers, no forecasts, no sale-event guesses.
+WAIT_Q = "Should I buy now or wait for a sale?"
+WAIT = [
+    (
+        "good_deal",
+        PriceHistorySummary(site="amazon", verdict="good_deal", current=486, lowest=486, lowest_date="2026-11-17",
+                            highest=549, usual=529, readings=7, days_tracked=14),
+        {486, 529, 549, 43, 63, 7, 14},
+        r"486|529|lowest",
+    ),
+    (
+        "not_enough_data",
+        PriceHistorySummary(site="amazon", verdict="not_enough_data", current=486, lowest=486, lowest_date="2026-11-17",
+                            highest=486, usual=486, readings=1, days_tracked=0),
+        {486},
+        r"not enough|too short|only (one|1|a single)|just started|limited|single reading",
+    ),
+]
+_PREDICTS = re.compile(
+    r"\b(will|going to|expected to|likely to|could|may|might|tends? to|usually)\s+(drop|fall|go down|decrease|come down|reduce|dip)\b"
+    r"|big billion|great indian festival|prime day|diwali|black friday|festive sale|end of season sale|republic day",
+    re.I,
+)
+
+
+_HEDGE = re.compile(r"\b(no|not|never|cannot|without|whether|if|unknown|unclear)\b|n['’]t\b", re.I)
+
+
+def unhedged(pattern: re.Pattern, answer: str) -> bool:
+    """True if `pattern` occurs as a claim; "can't tell whether the price will fall" is a hedge, not a claim."""
+    for m in pattern.finditer(answer):
+        sentence_start = max(answer.rfind(".", 0, m.start()), answer.rfind("\n", 0, m.start())) + 1
+        if not _HEDGE.search(answer[max(sentence_start, m.start() - 60) : m.start()]):
+            return True
+    return False
+
+
+def predicts(answer: str) -> bool:
+    return unhedged(_PREDICTS, answer)
+
+
+def wait_ok(answer: str, allowed: set, must: str) -> bool:
+    return rupee_figures(answer) <= allowed and not predicts(answer) and bool(re.search(must, answer, re.I))
+
+
 # "Are the reviews fake?" with a computed trust report attached: the answer must describe the measured
 # patterns (citing a computed number) and must never assert that reviews are fake/bought/paid.
 TRUST_Q = "Are these reviews fake?"
@@ -140,9 +186,18 @@ def first_line_picks(answer: str, pattern: str) -> bool:
     return bool(re.search(pattern, line, re.I)) and not re.match(r"\W*(mostly\s+)?(yes|no)\b", line, re.I)
 
 
-async def ask(question: str, comparison: Optional[Comparison] = None, trust: Optional[TrustReport] = None) -> str:
+async def ask(
+    question: str,
+    comparison: Optional[Comparison] = None,
+    trust: Optional[TrustReport] = None,
+    price_history: Optional[PriceHistorySummary] = None,
+) -> str:
     req = ChatRequest(
-        product=PRODUCT, comparison=comparison, trust=trust, messages=[ChatMessage(role="user", content=question)]
+        product=PRODUCT,
+        comparison=comparison,
+        trust=trust,
+        price_history=price_history,
+        messages=[ChatMessage(role="user", content=question)],
     )
     return "".join([chunk async for chunk in llm.stream_chat(req)]).strip()
 
@@ -165,6 +220,9 @@ async def main() -> None:
     trust_answers = await asyncio.gather(*(ask(TRUST_Q, trust=report) for _, report, _ in TRUST))
     cases += [(f"{TRUST_Q} (trust: {name})", "trust", must) for name, _, must in TRUST]
     answers += list(trust_answers)
+    wait_answers = await asyncio.gather(*(ask(WAIT_Q, price_history=h) for _, h, _, _ in WAIT))
+    cases += [(f"{WAIT_Q} (history: {name})", "wait", (allowed, must)) for name, _, allowed, must in WAIT]
+    answers += list(wait_answers)
     passed = 0
     for (question, kind, extra), answer in zip(cases, answers):
         note = ""
@@ -176,13 +234,16 @@ async def main() -> None:
             ok = first_line_picks(answer, extra)
         elif kind == "trust":
             ok = trust_ok(answer, extra)
+        elif kind == "wait":
+            ok = wait_ok(answer, *extra)
+            note = f"  (₹ figures: {sorted(rupee_figures(answer))})"
         elif kind == "price":
             ok = price_ok(answer, *extra)
             note = f"  (₹ figures: {sorted(rupee_figures(answer))})"
         else:
             ok = declined(answer) == (kind == "off")
         passed += ok
-        print(f"{'PASS' if ok else 'FAIL'}  [{kind:6s}] {question}{note}\n      -> {answer[:110]!r}")
+        print(f"{'PASS' if ok else 'FAIL'}  [{kind:6s}] {question}{note}\n      -> {(answer if not ok else answer[:110])!r}")
     print(f"\n{passed}/{len(cases)} passed")
 
 

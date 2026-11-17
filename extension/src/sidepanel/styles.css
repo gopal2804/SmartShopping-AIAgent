@@ -134,6 +134,16 @@ button.ghost { background: transparent; }
 .checks li { margin: 3px 0; }
 .checks li.passed { color: var(--good); }
 
+.prices h3 { margin-top: 0; }
+.sparkline { display: block; width: 100%; height: 40px; margin: 10px 0 4px; }
+.sparkline polyline { stroke: var(--accent); stroke-width: 2; }
+.watch-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.watch-row input {
+  flex: 1; min-width: 0; font: inherit; padding: 7px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg); color: var(--text);
+}
+.watch-row span { flex: 1; }
+
 .chat h3 { margin-top: 0; }
 .messages { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; margin-bottom: 8px; }
 .msg { padding: 8px 10px; border-radius: 10px; white-space: pre-wrap; max-width: 92%; }

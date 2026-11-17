@@ -95,12 +95,27 @@ export interface ComparisonDto {
   differences: string[];
 }
 
+/** Observed price history for the chat; every number comes from recorded readings. */
+export interface PriceInsightDto {
+  site: Site;
+  verdict: "good_deal" | "typical" | "above_usual" | "not_enough_data";
+  current: number;
+  lowest: number;
+  lowest_date: string;
+  highest: number;
+  usual: number;
+  readings: number;
+  days_tracked: number;
+  other_site_price: number | null;
+}
+
 export async function streamChat(
   body: {
     product: Product;
     analysis: ProductAnalysis | null;
     comparison: ComparisonDto | null;
     trust: TrustReport | null;
+    price_history: PriceInsightDto | null;
     messages: ChatMessage[];
   },
   onChunk: (text: string) => void

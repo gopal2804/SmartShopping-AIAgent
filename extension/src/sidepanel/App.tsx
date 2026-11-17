@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { compareProduct } from "../compare";
 import { dedupeReviews } from "../content/common";
+import { priceInsight } from "../prices/insight";
+import type { PriceHistory, WatchItem } from "../prices/model";
+import { toNumber } from "../prices/parse";
+import { getHistory, getWatchlist, recordPrice, unwatch, watch } from "../prices/store";
+import { CHECK_PRICES_MESSAGE } from "../types";
 import type { ChatMessage, Comparison, Product, ProductAnalysis, Review, Site, Theme, TrustReport } from "../types";
 import {
   analyzeProduct,
@@ -10,7 +15,28 @@ import {
   getMoreReviews,
   streamChat,
   type ComparisonDto,
+  type PriceInsightDto,
 } from "./api";
+import { PriceCard } from "./PriceCard";
+
+const productRef = (p: Product) => ({ site: p.site, id: p.product_id || p.url, title: p.title, url: p.url });
+
+function toPriceDto(history: PriceHistory | null, comparison: ComparisonDto | null): PriceInsightDto | null {
+  const insight = history ? priceInsight(history.points, Date.now()) : null;
+  if (!history || !insight) return null;
+  return {
+    site: history.site,
+    verdict: insight.verdict,
+    current: insight.current,
+    lowest: insight.lowest,
+    lowest_date: new Date(insight.lowestAt).toISOString().slice(0, 10),
+    highest: insight.highest,
+    usual: insight.median,
+    readings: insight.points,
+    days_tracked: insight.days,
+    other_site_price: comparison?.verdict === "same" ? comparison.price : null,
+  };
+}
 
 type TrustState = { key: string; status: "loading" } | { key: string; status: "done"; report: TrustReport } | {
   key: string;
@@ -26,11 +52,6 @@ const TRUST_LEVEL: Record<TrustReport["level"], { label: string; tone: string }>
 
 const SITE_NAME: Record<Site, string> = { amazon: "Amazon.in", flipkart: "Flipkart" };
 const rupees = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
-
-function parsePrice(price: string): number | null {
-  const n = Number(price.replace(/[^\d.]/g, ""));
-  return price && Number.isFinite(n) && n > 0 ? n : null;
-}
 
 function toComparisonDto(c: Comparison | null): ComparisonDto | null {
   if (c?.status !== "done" || !c.match) return null;
@@ -96,6 +117,9 @@ export default function App() {
   const [extra, setExtra] = useState<ExtraReviews>(NO_EXTRA);
   const [comparison, setComparison] = useState<{ key: string; value: Comparison } | null>(null);
   const [trust, setTrust] = useState<TrustState | null>(null);
+  const [prices, setPrices] = useState<{ key: string; history: PriceHistory | null; watching: WatchItem | null } | null>(
+    null
+  );
   const productKey = useRef("");
   const moreReviewsRequest = useRef<{ key: string; promise: Promise<ExtraData> } | null>(null);
   const chatEnd = useRef<HTMLDivElement>(null);
@@ -117,6 +141,7 @@ export default function App() {
         setExtra({ ...NO_EXTRA, key });
         setComparison(null);
         setTrust(null);
+        setPrices(null);
         moreReviewsRequest.current = null;
       }
       setPage({ kind: "product", product: res.product });
@@ -211,11 +236,57 @@ export default function App() {
   }, [product, extra.status, extra.key, trust?.key]);
 
   // Same product → scan() keeps its state, so a manual rescan forgets the product to force a full refresh.
+  const loadPrices = useCallback(async (p: Product, key: string) => {
+    const ref = productRef(p);
+    const [history, list] = await Promise.all([getHistory(ref.site, ref.id), getWatchlist()]);
+    const watching = list.find((w) => w.site === ref.site && w.id === ref.id) ?? null;
+    if (productKey.current === key) setPrices({ key, history, watching });
+  }, []);
+
+  // Every product view adds a price reading (deduped within 6 hours), so history builds up passively.
+  useEffect(() => {
+    const key = productKey.current;
+    if (!pageProduct || !key || prices?.key === key) return;
+    const price = toNumber(pageProduct.price);
+    (price !== null ? recordPrice(productRef(pageProduct), price) : Promise.resolve())
+      .then(() => loadPrices(pageProduct, key))
+      .catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageProduct, prices?.key]);
+
+  // A confirmed same-product match on the other site gets a reading too, building cross-site history.
+  useEffect(() => {
+    const c = comparison?.value;
+    if (c?.status !== "done" || c.match?.verdict !== "same" || c.match.listing.price === null) return;
+    const { site, id, title, url, price } = c.match.listing;
+    void recordPrice({ site, id, title, url }, price).catch(() => undefined);
+  }, [comparison]);
+
+  async function startWatching(target: number | null) {
+    if (!pageProduct) return;
+    await watch({ ...productRef(pageProduct), target });
+    await loadPrices(pageProduct, productKey.current);
+  }
+
+  async function stopWatching() {
+    if (!pageProduct) return;
+    const ref = productRef(pageProduct);
+    await unwatch(ref.site, ref.id);
+    await loadPrices(pageProduct, productKey.current);
+  }
+
+  async function checkWatchedNow(): Promise<string> {
+    const res = await chrome.runtime.sendMessage({ type: CHECK_PRICES_MESSAGE });
+    if (pageProduct) await loadPrices(pageProduct, productKey.current);
+    return `Checked ${res?.checked ?? 0} watched product${res?.checked === 1 ? "" : "s"}; ${res?.alerts ?? 0} alert${res?.alerts === 1 ? "" : "s"} sent.`;
+  }
+
   function rescan() {
     productKey.current = "";
     moreReviewsRequest.current = null;
     setComparison(null);
     setTrust(null);
+    setPrices(null);
     setPage({ kind: "loading" });
     scan();
   }
@@ -255,6 +326,10 @@ export default function App() {
           analysis,
           comparison: toComparisonDto(comparison?.value ?? null),
           trust: trust?.status === "done" && trust.key === productKey.current ? trust.report : null,
+          price_history: toPriceDto(
+            prices?.key === productKey.current ? prices.history : null,
+            toComparisonDto(comparison?.value ?? null)
+          ),
           messages: history,
         },
         append
@@ -315,7 +390,17 @@ export default function App() {
           </section>
 
           {comparison && comparison.key === productKey.current && (
-            <CompareCard comparison={comparison.value} sourcePrice={parsePrice(product.price)} sourceSite={product.site} />
+            <CompareCard comparison={comparison.value} sourcePrice={toNumber(product.price)} sourceSite={product.site} />
+          )}
+
+          {prices && prices.key === productKey.current && (
+            <PriceCard
+              history={prices.history}
+              watching={prices.watching}
+              onWatch={startWatching}
+              onUnwatch={stopWatching}
+              onCheckNow={checkWatchedNow}
+            />
           )}
 
           {trust && trust.key === productKey.current && <TrustCard trust={trust} />}

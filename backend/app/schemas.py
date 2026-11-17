@@ -82,6 +82,21 @@ class Comparison(BaseModel):
     differences: List[str] = Field(default_factory=list, max_length=5)
 
 
+class PriceHistorySummary(BaseModel):
+    """Observed prices recorded by the extension in the user's browser; computed, not model output."""
+
+    site: Literal["amazon", "flipkart"]
+    verdict: Literal["good_deal", "typical", "above_usual", "not_enough_data"]
+    current: float
+    lowest: float
+    lowest_date: str = Field(max_length=10)
+    highest: float
+    usual: float
+    readings: int
+    days_tracked: int
+    other_site_price: Optional[float] = None
+
+
 SignalId = Literal["review_burst", "near_duplicates", "unverified_share", "incentive_mentions"]
 
 
@@ -119,4 +134,5 @@ class ChatRequest(BaseModel):
     analysis: Optional[ProductAnalysis] = None
     comparison: Optional[Comparison] = None
     trust: Optional[TrustReport] = None
+    price_history: Optional[PriceHistorySummary] = None
     messages: List[ChatMessage] = Field(min_length=1, max_length=40)

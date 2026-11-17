@@ -5,6 +5,7 @@ A neutral shopping assistant for **Amazon.in** and **Flipkart**, as a Chrome sid
 - **Phase 1:** review summary (verdict, pros/cons with frequency, best-for, confidence) + streaming product Q&A.
 - **Phase 2:** cross-site comparison ("₹2,860 cheaper on Flipkart"), with conservative AI matching.
 - **Phase 3:** review trust check: unusual review patterns (bursts, copy-paste, unverified buyers, rewards for reviews), measured by code and explained without accusations.
+- **Phase 4:** price tracking and alerts: history recorded in your browser, a "good time to buy?" verdict from observed prices, and Chrome notifications for watched products.
 
 ## Screenshots
 
@@ -111,14 +112,34 @@ Guardrails:
 
 Measured: on synthetic sets with planted patterns every pattern is caught; on 40 genuine-looking sets and on real products (boAt Airdopes 219: 198 Flipkart reviews, 172 Amazon reviews) nothing is flagged.
 
+## Price tracking and alerts
+
+Every product you view adds a price reading (and so does its confirmed match on the other site), so history builds up as you browse. The **Price tracker** card shows a small chart, the lowest/usual/highest observed price and a verdict; **Watch price** (optionally with a target) adds the product to a watchlist that a background job re-checks every 6 hours, sending a Chrome notification when the price drops.
+
+```
+side panel ──record──▶ chrome.storage.local ◀──record── background worker (chrome.alarms, every 6 h)
+   │                    (history + watchlist)                │ fetch + parse page in an offscreen document
+   └── deal verdict (code) ── chat gets the numbers          └─▶ alert rules (code) ─▶ chrome.notifications
+```
+
+Guardrails:
+
+- **Private by design.** History and the watchlist stay in `chrome.storage.local`; nothing is stored on a server, and tracking works without the backend running.
+- **No verdict on thin data.** "Good time to buy / Typical / Higher than usual" needs ≥3 readings over ≥3 days; before that it says "Not enough history yet". The verdict is computed in [`src/prices/insight.ts`](extension/src/prices/insight.ts), not by the model.
+- **No forecasts.** Neither the card nor the chat predicts future prices or sale events (Diwali, Big Billion Days…); the chat eval checks this.
+- **Bad readings don't become alerts.** A reading more than 3× away from the last one (e.g. an EMI price like "₹342/month" picked up instead of ₹6,990) is discarded as suspect. The Amazon price is read only from the buy-box block.
+- **No notification spam.** A target alerts once (and again only at a lower price); without a target, a ≥5% drop alerts at most once a day unless it's a new lowest price. Up to 20 watched products, checked one at a time with pauses.
+
+Honest limitation: history starts when you first view a product. There's no free, legitimate source of past prices, so the verdict gets better the longer you use it.
+
 ## Guardrails and evals
 
 | Check | Command | Latest result |
 |---|---|---|
-| Rule unit tests (query building, model numbers, spec conflicts, pre-filter, safe truncation) | `cd extension && npm test` | 12/12 |
+| Extension unit tests: matching rules, safe truncation, price parsing, deal verdict, alert rules, background check (fake storage) | `cd extension && npm test` | 26/26 |
 | Matcher eval: 27 labelled pairs incl. variants, Pro/Lite near-misses, accessories, refurbished, combos, injection | `cd backend && .venv/bin/python -m evals.match_eval --runs 3` | 81/81, **0 false "same"** |
 | Trust eval: planted bursts/copies/rewards/unverified, edge cases, genuine sets, summary validator | `cd backend && .venv/bin/python -m evals.trust_eval` | 8/8 cases, **0/40 false alarms**, summaries 12/12 accepted |
-| Chat guardrails: off-topic, jailbreak, mixed, sizing choices, price honesty, "are reviews fake?" | `cd backend && .venv/bin/python -m evals.guardrail_eval` | 20/20 (3 runs) |
+| Chat guardrails: off-topic, jailbreak, mixed, sizing choices, price honesty, "are reviews fake?", "buy now or wait?" (no forecasts) | `cd backend && .venv/bin/python -m evals.guardrail_eval` | 22/22 (3 runs) |
 
 Chat is scoped to the product: off-topic questions get a fixed decline message, mixed questions get only the product part answered. Review text is treated as untrusted data (a review saying "ignore all previous instructions" is in the eval fixture). Every ₹ figure in a price answer must come from scraped data. Run the chat eval (makes ~20 small OpenAI calls):
 
@@ -139,5 +160,6 @@ cd backend && .venv/bin/python -m evals.model_bench gpt-6-luna gpt-5-mini --runs
 1. ~~Review summary + product chat~~
 2. ~~Cross-site comparison (matching the same product on Amazon and Flipkart)~~
 3. ~~Review trust signals (bursts, near-duplicate text, unverified share, rewards for reviews) + validated summary~~
-4. Price tracking with history charts and drop alerts for both sites (`chrome.alarms`, Postgres)
-5. Agent actions (watch price, add to wishlist/cart with confirmation)
+4. ~~Price tracking with history charts and drop alerts for both sites~~
+5. CI (tests + build on every push) and a downloadable release zip
+6. Agent actions (add to wishlist/cart, always with confirmation)
