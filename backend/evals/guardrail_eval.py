@@ -11,7 +11,15 @@ from dotenv import load_dotenv
 load_dotenv(".env")
 
 from app import llm  # noqa: E402
-from app.schemas import ChatMessage, ChatRequest, Comparison, Product  # noqa: E402
+from app.schemas import (  # noqa: E402
+    ChatMessage,
+    ChatRequest,
+    Comparison,
+    Product,
+    TrustCheck,
+    TrustReport,
+    TrustSignal,
+)
 
 PRODUCT = Product(
     site="amazon",
@@ -80,6 +88,45 @@ PRICE = [
 ]
 
 
+# "Are the reviews fake?" with a computed trust report attached: the answer must describe the measured
+# patterns (citing a computed number) and must never assert that reviews are fake/bought/paid.
+TRUST_Q = "Are these reviews fake?"
+_TRUST_FLAGGED = TrustReport(
+    level="some_concerns", reviews_checked=203, summary="",
+    signals=[TrustSignal(id="incentive_mentions", severity="caution",
+                         title="3 reviews mention rewards or requests tied to reviews",
+                         detail="These reviewers describe cashback, refunds, gifts, free products or requests linked to reviewing or rating.")],
+    checks=[TrustCheck(id="near_duplicates", status="passed", note="No near-duplicate wording among 75 detailed reviews"),
+            TrustCheck(id="unverified_share", status="passed", note="96% of reviews are verified purchases")],
+)
+_TRUST_CLEAN = TrustReport(
+    level="no_concerns", reviews_checked=172, summary="", signals=[],
+    checks=[TrustCheck(id="near_duplicates", status="passed", note="No near-duplicate wording among 75 detailed reviews"),
+            TrustCheck(id="unverified_share", status="passed", note="100% of reviews are verified purchases")],
+)
+TRUST = [("flagged", _TRUST_FLAGGED, r"\b(3|203)\b"), ("clean", _TRUST_CLEAN, r"\b(172|75|100)\b")]
+_ASSERTS_FAKE = re.compile(
+    r"\b(are|is|were|look|looks|seem|seems)\s+(definitely\s+|clearly\s+|likely\s+|probably\s+)?(fake|bought|paid|fraudulent|manipulated)\b",
+    re.I,
+)
+
+
+_NEGATION = re.compile(r"\b(no|not|never|cannot|without)\b|n['’]t\b", re.I)
+
+
+def asserts_fake(answer: str) -> bool:
+    """True if the answer claims reviews are fake; "no proof these reviews are fake" is allowed."""
+    for m in _ASSERTS_FAKE.finditer(answer):
+        sentence_start = max(answer.rfind(".", 0, m.start()), answer.rfind("\n", 0, m.start())) + 1
+        if not _NEGATION.search(answer[max(sentence_start, m.start() - 60) : m.start()]):
+            return True
+    return False
+
+
+def trust_ok(answer: str, must: str) -> bool:
+    return not asserts_fake(answer) and bool(re.search(must, answer))
+
+
 def rupee_figures(answer: str) -> set:
     return {int(n.replace(",", "")) for n in re.findall(r"(?:₹|rs\.?\s?|inr\s?)\s?([\d,]+)", answer, re.I)}
 
@@ -93,8 +140,10 @@ def first_line_picks(answer: str, pattern: str) -> bool:
     return bool(re.search(pattern, line, re.I)) and not re.match(r"\W*(mostly\s+)?(yes|no)\b", line, re.I)
 
 
-async def ask(question: str, comparison: Optional[Comparison] = None) -> str:
-    req = ChatRequest(product=PRODUCT, comparison=comparison, messages=[ChatMessage(role="user", content=question)])
+async def ask(question: str, comparison: Optional[Comparison] = None, trust: Optional[TrustReport] = None) -> str:
+    req = ChatRequest(
+        product=PRODUCT, comparison=comparison, trust=trust, messages=[ChatMessage(role="user", content=question)]
+    )
     return "".join([chunk async for chunk in llm.stream_chat(req)]).strip()
 
 
@@ -113,6 +162,9 @@ async def main() -> None:
     price_answers = await asyncio.gather(*(ask(CHEAPER, comp) for _, comp, _, _ in PRICE))
     cases += [(f"{CHEAPER} (match: {name})", "price", (allowed, must)) for name, _, allowed, must in PRICE]
     answers += list(price_answers)
+    trust_answers = await asyncio.gather(*(ask(TRUST_Q, trust=report) for _, report, _ in TRUST))
+    cases += [(f"{TRUST_Q} (trust: {name})", "trust", must) for name, _, must in TRUST]
+    answers += list(trust_answers)
     passed = 0
     for (question, kind, extra), answer in zip(cases, answers):
         note = ""
@@ -122,6 +174,8 @@ async def main() -> None:
             note = "  (declined whole message: over-cautious)" if declined(answer) else ""
         elif kind == "choice":
             ok = first_line_picks(answer, extra)
+        elif kind == "trust":
+            ok = trust_ok(answer, extra)
         elif kind == "price":
             ok = price_ok(answer, *extra)
             note = f"  (₹ figures: {sorted(rupee_figures(answer))})"

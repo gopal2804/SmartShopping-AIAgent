@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { truncate } from "../content/common";
 import { brandMatches, buildQuery, modelTokens, preFilter, specConflicts } from "./rules";
 
 const listing = (title: string, variant = "", brand = "") => ({ title, variant, brand });
@@ -66,5 +67,14 @@ describe("preFilter", () => {
   it("returns at most the requested number of candidates", () => {
     const many = Array.from({ length: 9 }, (_, i) => listing(`boAt Airdopes 219 colour ${i}`, "", "boAt"));
     expect(preFilter(src, "boAt", many, 5)).toHaveLength(5);
+  });
+});
+
+describe("truncate", () => {
+  it("never leaves half of an emoji", () => {
+    const s = "great 👍";
+    expect(truncate(s, 7)).toBe("great ");
+    expect(() => encodeURIComponent(truncate(s, 7))).not.toThrow();
+    expect(truncate(s, 8)).toBe(s);
   });
 });

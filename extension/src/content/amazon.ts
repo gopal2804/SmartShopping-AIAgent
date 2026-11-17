@@ -12,6 +12,7 @@ import {
   sleep,
   takeNew,
   textOf,
+  unseenFilter,
   type MoreReviewsResult,
 } from "./common";
 
@@ -35,6 +36,8 @@ function extractReviews(root: ParentNode): Review[] {
       .trim();
     const badges = textOf(first(['[data-hook="review-badges"]'], node));
     return {
+      // Element ids look like "R2ABC…" on review pages and "customer_review-R2ABC…" on product pages.
+      id: node.id.match(/R[A-Z0-9]{8,}/)?.[0],
       title: clean(rawTitle.replace(/^[0-5](\.\d)? out of 5 stars/i, "")),
       body,
       rating: parseRating(ratingText),
@@ -217,7 +220,7 @@ export async function fetchMoreAmazonReviews(url: URL): Promise<MoreReviewsResul
   const asin = url.pathname.match(ASIN_RE)?.[1];
   const result: MoreReviewsResult = { reviews: [], pagesRead: 0, blocked: null, ratingBreakdown: "" };
   if (!asin) return result;
-  const seen = new Set<string>();
+  const seen = unseenFilter();
 
   for (const { source, pages } of SAMPLE_PLAN) {
     let read = 0;

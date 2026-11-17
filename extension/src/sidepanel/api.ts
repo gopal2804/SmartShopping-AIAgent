@@ -8,6 +8,7 @@ import {
   type Product,
   type ProductAnalysis,
   type Site,
+  type TrustReport,
 } from "../types";
 
 export const BACKEND_URL = "http://localhost:8000";
@@ -54,6 +55,16 @@ export async function analyzeProduct(product: Product): Promise<ProductAnalysis>
   return res.json();
 }
 
+export async function checkTrust(product: Product): Promise<TrustReport> {
+  const res = await fetch(`${BACKEND_URL}/api/trust`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(product),
+  });
+  if (!res.ok) throw new Error(await errorDetail(res));
+  return res.json();
+}
+
 export interface MatchVerdictDto {
   index: number;
   verdict: MatchVerdict;
@@ -85,7 +96,13 @@ export interface ComparisonDto {
 }
 
 export async function streamChat(
-  body: { product: Product; analysis: ProductAnalysis | null; comparison: ComparisonDto | null; messages: ChatMessage[] },
+  body: {
+    product: Product;
+    analysis: ProductAnalysis | null;
+    comparison: ComparisonDto | null;
+    trust: TrustReport | null;
+    messages: ChatMessage[];
+  },
   onChunk: (text: string) => void
 ): Promise<void> {
   const res = await fetch(`${BACKEND_URL}/api/chat`, {

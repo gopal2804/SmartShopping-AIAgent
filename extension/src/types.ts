@@ -1,6 +1,8 @@
 export type Site = "amazon" | "flipkart";
 
 export interface Review {
+  /** The site's own review ID, when available. */
+  id?: string;
   title: string;
   body: string;
   rating: number | null;
@@ -73,6 +75,29 @@ export type Comparison =
   | { status: "searching"; target: Site }
   | { status: "done"; target: Site; match: MatchResult | null; checked: number }
   | { status: "error"; target: Site; message: string };
+
+export interface TrustSignal {
+  id: string;
+  severity: "caution" | "warning";
+  title: string;
+  detail: string;
+  examples: string[];
+}
+
+export interface TrustCheck {
+  id: string;
+  status: "passed" | "flagged" | "skipped";
+  note: string;
+}
+
+/** Review-pattern check: numbers are computed by backend code; only `summary` is model-written (validated). */
+export interface TrustReport {
+  level: "insufficient" | "no_concerns" | "some_concerns" | "notable_concerns";
+  reviews_checked: number;
+  signals: TrustSignal[];
+  checks: TrustCheck[];
+  summary: string;
+}
 
 export interface ChatMessage {
   role: "user" | "assistant";

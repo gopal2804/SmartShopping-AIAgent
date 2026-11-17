@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import StreamingResponse  # noqa: E402
 
 from . import llm  # noqa: E402
-from .schemas import ChatRequest, MatchRequest, MatchVerdicts, Product, ProductAnalysis  # noqa: E402
+from .schemas import ChatRequest, MatchRequest, MatchVerdicts, Product, ProductAnalysis, TrustReport  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(name)s: %(message)s")
 logger = logging.getLogger("smart_shopping_agent")
@@ -48,6 +48,12 @@ async def match(req: MatchRequest) -> MatchVerdicts:
     except Exception as exc:
         logger.exception("Match failed")
         raise HTTPException(status_code=502, detail=f"LLM call failed: {exc}") from exc
+
+
+@app.post("/api/trust", response_model=TrustReport)
+async def trust_check(product: Product) -> TrustReport:
+    # Signals are computed without the model; only the one-line summary uses it, with a template fallback.
+    return await llm.assess_trust(product)
 
 
 @app.post("/api/chat")

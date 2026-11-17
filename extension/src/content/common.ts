@@ -27,20 +27,43 @@ export function parseRating(s: string | null | undefined): number | null {
 }
 
 export function pageText(): string {
-  return (document.body?.innerText ?? "").replace(/\n{2,}/g, "\n").slice(0, MAX_PAGE_TEXT);
+  return truncate((document.body?.innerText ?? "").replace(/\n{2,}/g, "\n"), MAX_PAGE_TEXT);
+}
+
+/**
+ * Returns a filter that drops reviews already seen. Reviews with a site ID are deduped by ID, so the
+ * same review fetched by two sort orders collapses, while *different* reviewers posting identical text
+ * (a copy-paste pattern the trust check looks for) are kept. ID-less reviews fall back to the text.
+ */
+export function unseenFilter(): (r: Review) => boolean {
+  const ids = new Set<string>();
+  const bodies = new Set<string>();
+  return (r) => {
+    const body = r.body.slice(0, 120);
+    if (!r.body) return false;
+    if (r.id) {
+      if (ids.has(r.id)) return false;
+      ids.add(r.id);
+    } else if (bodies.has(body)) {
+      return false;
+    }
+    bodies.add(body);
+    return true;
+  };
+}
+
+/** Truncates without splitting an emoji's surrogate pair, which would make the JSON body invalid UTF-8. */
+export function truncate(s: string, max: number): string {
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  return /[\uD800-\uDBFF]$/.test(cut) ? cut.slice(0, -1) : cut;
 }
 
 export function dedupeReviews(reviews: Review[]): Review[] {
-  const seen = new Set<string>();
   return reviews
-    .filter((r) => {
-      const key = r.body.slice(0, 120);
-      if (!r.body || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
+    .filter(unseenFilter())
     .slice(0, MAX_REVIEWS)
-    .map((r) => ({ ...r, title: r.title.slice(0, 300), body: r.body.slice(0, 1500) }));
+    .map((r) => ({ ...r, title: truncate(r.title, 300), body: truncate(r.body, 1500) }));
 }
 
 // Line-by-line text that also works on DOMParser documents, which have no layout (innerText is unreliable there).
@@ -88,16 +111,9 @@ export const SAMPLE_PLAN: { source: ReviewSource; pages: number }[] = [
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Keeps only reviews not seen before (keyed by the start of the body), tagging them with their source. */
-export function takeNew(reviews: Review[], seen: Set<string>, source: ReviewSource): Review[] {
-  return reviews
-    .filter((r) => {
-      const key = r.body.slice(0, 120);
-      if (!r.body || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .map((r) => ({ ...r, source }));
+/** Keeps only reviews the filter hasn't seen, tagging them with their source. */
+export function takeNew(reviews: Review[], isUnseen: (r: Review) => boolean, source: ReviewSource): Review[] {
+  return reviews.filter(isUnseen).map((r) => ({ ...r, source }));
 }
 
 export interface ReviewSite {
@@ -111,7 +127,7 @@ export interface ReviewSite {
 // when a page adds nothing new.
 export async function collectReviewPages(site: ReviewSite): Promise<MoreReviewsResult> {
   const all: Review[] = [];
-  const seen = new Set<string>();
+  const seen = unseenFilter();
   let pagesRead = 0;
   let ratingBreakdown = "";
 

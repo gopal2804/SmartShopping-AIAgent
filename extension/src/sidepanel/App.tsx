@@ -1,8 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { compareProduct } from "../compare";
 import { dedupeReviews } from "../content/common";
-import type { ChatMessage, Comparison, Product, ProductAnalysis, Review, Site, Theme } from "../types";
-import { analyzeProduct, BACKEND_URL, getActiveProduct, getMoreReviews, streamChat, type ComparisonDto } from "./api";
+import type { ChatMessage, Comparison, Product, ProductAnalysis, Review, Site, Theme, TrustReport } from "../types";
+import {
+  analyzeProduct,
+  BACKEND_URL,
+  checkTrust,
+  getActiveProduct,
+  getMoreReviews,
+  streamChat,
+  type ComparisonDto,
+} from "./api";
+
+type TrustState = { key: string; status: "loading" } | { key: string; status: "done"; report: TrustReport } | {
+  key: string;
+  status: "error";
+};
+
+const TRUST_LEVEL: Record<TrustReport["level"], { label: string; tone: string }> = {
+  insufficient: { label: "Not enough reviews to check", tone: "neutral" },
+  no_concerns: { label: "No unusual patterns", tone: "good" },
+  some_concerns: { label: "Some unusual patterns", tone: "warn" },
+  notable_concerns: { label: "Notable unusual patterns", tone: "bad" },
+};
 
 const SITE_NAME: Record<Site, string> = { amazon: "Amazon.in", flipkart: "Flipkart" };
 const rupees = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -75,6 +95,7 @@ export default function App() {
   const [streaming, setStreaming] = useState(false);
   const [extra, setExtra] = useState<ExtraReviews>(NO_EXTRA);
   const [comparison, setComparison] = useState<{ key: string; value: Comparison } | null>(null);
+  const [trust, setTrust] = useState<TrustState | null>(null);
   const productKey = useRef("");
   const moreReviewsRequest = useRef<{ key: string; promise: Promise<ExtraData> } | null>(null);
   const chatEnd = useRef<HTMLDivElement>(null);
@@ -95,6 +116,7 @@ export default function App() {
         setMessages([]);
         setExtra({ ...NO_EXTRA, key });
         setComparison(null);
+        setTrust(null);
         moreReviewsRequest.current = null;
       }
       setPage({ kind: "product", product: res.product });
@@ -177,11 +199,23 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageProduct, comparison?.key]);
 
+  // Check review patterns once the background review pages have loaded (it needs the full sample).
+  useEffect(() => {
+    const key = productKey.current;
+    if (!product || extra.key !== key || extra.status !== "done" || trust?.key === key) return;
+    setTrust({ key, status: "loading" });
+    checkTrust(product)
+      .then((report) => productKey.current === key && setTrust({ key, status: "done", report }))
+      .catch(() => productKey.current === key && setTrust({ key, status: "error" }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product, extra.status, extra.key, trust?.key]);
+
   // Same product → scan() keeps its state, so a manual rescan forgets the product to force a full refresh.
   function rescan() {
     productKey.current = "";
     moreReviewsRequest.current = null;
     setComparison(null);
+    setTrust(null);
     setPage({ kind: "loading" });
     scan();
   }
@@ -216,7 +250,13 @@ export default function App() {
     try {
       const full = (await withMoreReviews()) ?? product;
       await streamChat(
-        { product: full, analysis, comparison: toComparisonDto(comparison?.value ?? null), messages: history },
+        {
+          product: full,
+          analysis,
+          comparison: toComparisonDto(comparison?.value ?? null),
+          trust: trust?.status === "done" && trust.key === productKey.current ? trust.report : null,
+          messages: history,
+        },
         append
       );
     } catch (err) {
@@ -277,6 +317,8 @@ export default function App() {
           {comparison && comparison.key === productKey.current && (
             <CompareCard comparison={comparison.value} sourcePrice={parsePrice(product.price)} sourceSite={product.site} />
           )}
+
+          {trust && trust.key === productKey.current && <TrustCard trust={trust} />}
 
           {analysis && <AnalysisView analysis={analysis} />}
 
@@ -367,6 +409,48 @@ function CompareCard({
         Open on {other} ↗
       </a>
       <p className="muted tiny">Listed prices only; coupons, bank offers and sellers may differ.</p>
+    </section>
+  );
+}
+
+function TrustCard({ trust }: { trust: TrustState }) {
+  if (trust.status === "loading") return <section className="card muted small">Checking review patterns…</section>;
+  if (trust.status === "error") return <section className="card muted small">Couldn't check review patterns right now.</section>;
+  const { report } = trust;
+  const level = TRUST_LEVEL[report.level];
+  return (
+    <section className="card trust">
+      <h3>Review trust</h3>
+      <span className={`trust-badge ${level.tone}`}>{level.label}</span>
+      <p>{report.summary}</p>
+      {report.signals.map((s) => (
+        <div key={s.id} className={`signal ${s.severity}`}>
+          <b>{s.title}</b>
+          <p className="small">{s.detail}</p>
+          {s.examples.length > 0 && (
+            <details>
+              <summary className="small">See examples</summary>
+              {s.examples.map((ex, i) => (
+                <blockquote key={i} className="small">{ex}</blockquote>
+              ))}
+            </details>
+          )}
+        </div>
+      ))}
+      {report.checks.length > 0 && (
+        <ul className="checks small">
+          {report.checks
+            .filter((c) => c.status !== "flagged")
+            .map((c) => (
+              <li key={c.id} className={c.status}>
+                {c.status === "passed" ? "✓" : "–"} {c.note}
+              </li>
+            ))}
+        </ul>
+      )}
+      <p className="muted tiny">
+        Based on {report.reviews_checked} reviews read. Patterns are signals, not proof that reviews are fake.
+      </p>
     </section>
   );
 }

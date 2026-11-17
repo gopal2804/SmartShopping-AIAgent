@@ -115,6 +115,7 @@ function reviewsFromInitialState(root: Document): Review[] {
   walk(state);
 
   return found.map((r) => ({
+    id: typeof r.id === "string" && r.id ? r.id : undefined,
     title: clean(String(r.title ?? "")),
     body: clean(String(r.text)),
     rating: r.rating as number,

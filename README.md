@@ -4,6 +4,7 @@ A neutral shopping assistant for **Amazon.in** and **Flipkart**, as a Chrome sid
 
 - **Phase 1:** review summary (verdict, pros/cons with frequency, best-for, confidence) + streaming product Q&A.
 - **Phase 2:** cross-site comparison ("₹2,860 cheaper on Flipkart"), with conservative AI matching.
+- **Phase 3:** review trust check: unusual review patterns (bursts, copy-paste, unverified buyers, rewards for reviews), measured by code and explained without accusations.
 
 ## Screenshots
 
@@ -89,13 +90,33 @@ title ──▶ search query ──▶ other site's search page ──▶ rule p
 
 Live example (Nov 2026): OnePlus Nord CE6 Lite 8 GB/128 GB Vivid Mint was ₹30,999 on Amazon and ₹28,139 on Flipkart. The 6 GB RAM, 256 GB and Hyper Black listings were correctly marked as variants, and "Nord CE6" (non-Lite) as a different product.
 
+## Review trust check
+
+Once the review sample has loaded (~200 reviews), the side panel shows a **Review trust** card. The patterns are measured by plain code in [`backend/app/trust.py`](backend/app/trust.py), so every number can be traced back to the reviews; the model only writes a one-line summary of those numbers.
+
+| Signal | Flagged when | Guard against false alarms |
+|---|---|---|
+| **Review burst** | ≥30% of dated 5-star reviews fall in one 7-day window (and ≥4× what an even spread predicts) | Needs ≥15 exact dates and a ≥60-day span; "most recent" reviews are excluded because sampling newest-first looks like a burst by construction |
+| **Near-duplicate wording** | ≥3 reviews (or ≥4 in pairs) share almost the same text (word-trigram Jaccard ≥ 0.5) | Only reviews with ≥8 words; reviews are deduped by site review ID, so one review fetched twice isn't a "copy" |
+| **Unverified buyers** | ≥30% of reviews aren't verified purchases | Compares 5-star vs 1–2 star unverified share in the detail |
+| **Rewards for reviews** | ≥2 reviews describe cashback/refunds/gifts *for* a rating, or a seller/card asking for 5 stars | Plain mentions ("bought as a gift, 5 star", "asked for a refund, 1 star") don't match |
+
+Guardrails:
+
+- **Signals, not verdicts.** The card says "unusual pattern", never "fake", and always ends with "Patterns are signals, not proof". Fewer than 20 reviews shows "Not enough reviews to check".
+- **Validated model output.** The summary is rejected and replaced by a fixed template if it contains a number that isn't in the computed evidence, or accusatory words (fake, fraud, bought/paid reviews, manipulated…). The model never sees review text here, only computed signals, so a review can't inject instructions into it.
+- **Chat knows the measurements.** "Are these reviews fake?" gets the computed patterns with their numbers ("no proof they're fake, but 3 of 203 mention rewards…"), never an accusation.
+
+Measured: on synthetic sets with planted patterns every pattern is caught; on 40 genuine-looking sets and on real products (boAt Airdopes 219: 198 Flipkart reviews, 172 Amazon reviews) nothing is flagged.
+
 ## Guardrails and evals
 
 | Check | Command | Latest result |
 |---|---|---|
-| Rule unit tests (query building, model numbers, spec conflicts, pre-filter) | `cd extension && npm test` | 11/11 |
+| Rule unit tests (query building, model numbers, spec conflicts, pre-filter, safe truncation) | `cd extension && npm test` | 12/12 |
 | Matcher eval: 27 labelled pairs incl. variants, Pro/Lite near-misses, accessories, refurbished, combos, injection | `cd backend && .venv/bin/python -m evals.match_eval --runs 3` | 81/81, **0 false "same"** |
-| Chat guardrails: off-topic, jailbreak, mixed, sizing choices, price honesty | `cd backend && .venv/bin/python -m evals.guardrail_eval` | 18/18 |
+| Trust eval: planted bursts/copies/rewards/unverified, edge cases, genuine sets, summary validator | `cd backend && .venv/bin/python -m evals.trust_eval` | 8/8 cases, **0/40 false alarms**, summaries 12/12 accepted |
+| Chat guardrails: off-topic, jailbreak, mixed, sizing choices, price honesty, "are reviews fake?" | `cd backend && .venv/bin/python -m evals.guardrail_eval` | 20/20 (3 runs) |
 
 Chat is scoped to the product: off-topic questions get a fixed decline message, mixed questions get only the product part answered. Review text is treated as untrusted data (a review saying "ignore all previous instructions" is in the eval fixture). Every ₹ figure in a price answer must come from scraped data. Run the chat eval (makes ~20 small OpenAI calls):
 
@@ -115,6 +136,6 @@ cd backend && .venv/bin/python -m evals.model_bench gpt-6-luna gpt-5-mini --runs
 
 1. ~~Review summary + product chat~~
 2. ~~Cross-site comparison (matching the same product on Amazon and Flipkart)~~
-3. Fake-review signals (review bursts, near-duplicate text, unverified share) + LLM explanation
+3. ~~Review trust signals (bursts, near-duplicate text, unverified share, rewards for reviews) + validated summary~~
 4. Price tracking with history charts and drop alerts for both sites (`chrome.alarms`, Postgres)
 5. Agent actions (watch price, add to wishlist/cart with confirmation)
