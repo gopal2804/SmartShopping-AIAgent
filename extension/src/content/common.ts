@@ -139,6 +139,7 @@ export function formatBreakdown(countsByStar: Record<number, number>): string {
 
 export interface JsonLdProduct {
   name?: string;
+  brand?: string;
   price?: string;
   rating?: number | null;
   ratingCount?: string;
@@ -179,8 +180,10 @@ export function readJsonLdProduct(): JsonLdProduct | null {
     const agg = p.aggregateRating as Json | undefined;
     const rawReviews = (Array.isArray(p.review) ? p.review : p.review ? [p.review] : []) as Json[];
 
+    const brand = typeof p.brand === "string" ? p.brand : (p.brand as Json | undefined)?.name;
     return {
       name: typeof p.name === "string" ? clean(p.name) : undefined,
+      brand: typeof brand === "string" ? clean(brand) : undefined,
       price: offers?.price != null ? `₹${Number(offers.price).toLocaleString("en-IN")}` : undefined,
       rating: agg?.ratingValue != null ? Number(agg.ratingValue) : null,
       ratingCount: agg?.ratingCount != null ? `${agg.ratingCount} ratings` : agg?.reviewCount != null ? `${agg.reviewCount} reviews` : undefined,

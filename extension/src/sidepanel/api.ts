@@ -3,9 +3,11 @@ import {
   MORE_REVIEWS_MESSAGE,
   type ChatMessage,
   type ExtractResponse,
+  type MatchVerdict,
   type MoreReviewsResponse,
   type Product,
   type ProductAnalysis,
+  type Site,
 } from "../types";
 
 export const BACKEND_URL = "http://localhost:8000";
@@ -52,8 +54,38 @@ export async function analyzeProduct(product: Product): Promise<ProductAnalysis>
   return res.json();
 }
 
+export interface MatchVerdictDto {
+  index: number;
+  verdict: MatchVerdict;
+  differences: string[];
+  reason: string;
+}
+
+export async function verifyMatches(
+  source: { site: Site; title: string; brand: string },
+  candidates: { title: string; variant: string; brand: string }[]
+): Promise<MatchVerdictDto[]> {
+  const res = await fetch(`${BACKEND_URL}/api/match`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source, candidates }),
+  });
+  if (!res.ok) throw new Error(await errorDetail(res));
+  return (await res.json()).verdicts;
+}
+
+export interface ComparisonDto {
+  site: Site;
+  verdict: "same" | "variant";
+  title: string;
+  price: number | null;
+  rating: number | null;
+  rating_count: number | null;
+  differences: string[];
+}
+
 export async function streamChat(
-  body: { product: Product; analysis: ProductAnalysis | null; messages: ChatMessage[] },
+  body: { product: Product; analysis: ProductAnalysis | null; comparison: ComparisonDto | null; messages: ChatMessage[] },
   onChunk: (text: string) => void
 ): Promise<void> {
   const res = await fetch(`${BACKEND_URL}/api/chat`, {

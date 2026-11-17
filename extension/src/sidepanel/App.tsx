@@ -1,7 +1,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { compareProduct } from "../compare";
 import { dedupeReviews } from "../content/common";
-import type { ChatMessage, Product, ProductAnalysis, Review, Theme } from "../types";
-import { analyzeProduct, BACKEND_URL, getActiveProduct, getMoreReviews, streamChat } from "./api";
+import type { ChatMessage, Comparison, Product, ProductAnalysis, Review, Site, Theme } from "../types";
+import { analyzeProduct, BACKEND_URL, getActiveProduct, getMoreReviews, streamChat, type ComparisonDto } from "./api";
+
+const SITE_NAME: Record<Site, string> = { amazon: "Amazon.in", flipkart: "Flipkart" };
+const rupees = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+
+function parsePrice(price: string): number | null {
+  const n = Number(price.replace(/[^\d.]/g, ""));
+  return price && Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function toComparisonDto(c: Comparison | null): ComparisonDto | null {
+  if (c?.status !== "done" || !c.match) return null;
+  const { listing, verdict, differences } = c.match;
+  return {
+    site: listing.site,
+    verdict,
+    title: listing.title,
+    price: listing.price,
+    rating: listing.rating,
+    rating_count: listing.ratingCount,
+    differences,
+  };
+}
 
 interface ExtraData {
   reviews: Review[];
@@ -51,6 +74,7 @@ export default function App() {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [extra, setExtra] = useState<ExtraReviews>(NO_EXTRA);
+  const [comparison, setComparison] = useState<{ key: string; value: Comparison } | null>(null);
   const productKey = useRef("");
   const moreReviewsRequest = useRef<{ key: string; promise: Promise<ExtraData> } | null>(null);
   const chatEnd = useRef<HTMLDivElement>(null);
@@ -70,6 +94,7 @@ export default function App() {
         setAnalysisError("");
         setMessages([]);
         setExtra({ ...NO_EXTRA, key });
+        setComparison(null);
         moreReviewsRequest.current = null;
       }
       setPage({ kind: "product", product: res.product });
@@ -141,10 +166,22 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageProduct, extra.key, extra.status]);
 
+  // Look for the same product on the other site once per product.
+  useEffect(() => {
+    const key = productKey.current;
+    if (!pageProduct || !key || comparison?.key === key) return;
+    setComparison({ key, value: { status: "searching", target: pageProduct.site === "amazon" ? "flipkart" : "amazon" } });
+    compareProduct(pageProduct).then((value) => {
+      if (productKey.current === key) setComparison({ key, value });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageProduct, comparison?.key]);
+
   // Same product → scan() keeps its state, so a manual rescan forgets the product to force a full refresh.
   function rescan() {
     productKey.current = "";
     moreReviewsRequest.current = null;
+    setComparison(null);
     setPage({ kind: "loading" });
     scan();
   }
@@ -178,7 +215,10 @@ export default function App() {
       });
     try {
       const full = (await withMoreReviews()) ?? product;
-      await streamChat({ product: full, analysis, messages: history }, append);
+      await streamChat(
+        { product: full, analysis, comparison: toComparisonDto(comparison?.value ?? null), messages: history },
+        append
+      );
     } catch (err) {
       append(`[Error: ${backendError(err)}]`);
     } finally {
@@ -234,6 +274,10 @@ export default function App() {
             {analysisError && <p className="error-text">{analysisError}</p>}
           </section>
 
+          {comparison && comparison.key === productKey.current && (
+            <CompareCard comparison={comparison.value} sourcePrice={parsePrice(product.price)} sourceSite={product.site} />
+          )}
+
           {analysis && <AnalysisView analysis={analysis} />}
 
           <section className="card chat">
@@ -264,6 +308,66 @@ export default function App() {
         </>
       )}
     </div>
+  );
+}
+
+function CompareCard({
+  comparison,
+  sourcePrice,
+  sourceSite,
+}: {
+  comparison: Comparison;
+  sourcePrice: number | null;
+  sourceSite: Site;
+}) {
+  const other = SITE_NAME[comparison.target];
+  if (comparison.status === "searching") {
+    return <section className="card compare muted small">Checking {other} for the same product…</section>;
+  }
+  if (comparison.status === "error") {
+    return <section className="card compare muted small">Couldn't check {other} right now.</section>;
+  }
+  if (!comparison.match) {
+    return (
+      <section className="card compare">
+        <h3>On {other}</h3>
+        <p className="muted small">
+          No matching listing found{comparison.checked ? ` among ${comparison.checked} search results` : ""}.
+        </p>
+      </section>
+    );
+  }
+
+  const { listing, verdict, differences } = comparison.match;
+  const diff = listing.price != null && sourcePrice != null ? listing.price - sourcePrice : null;
+  const here = SITE_NAME[sourceSite];
+  return (
+    <section className="card compare">
+      <h3>On {other}</h3>
+      <span className={`match-badge ${verdict}`}>{verdict === "same" ? "Same product" : "Similar listing: check the variant"}</span>
+      <div className="meta">
+        {listing.price != null && <span className="price">{rupees(listing.price)}</span>}
+        {listing.rating != null && <span>★ {listing.rating}</span>}
+        {listing.ratingCount != null && (
+          <span className="muted">({listing.ratingCount.toLocaleString("en-IN")} ratings)</span>
+        )}
+      </div>
+      {verdict === "same" && diff != null && (
+        <p className={`price-diff ${diff < 0 ? "cheaper" : diff > 0 ? "pricier" : ""}`}>
+          {diff === 0
+            ? `Same price as ${here}`
+            : diff < 0
+              ? `${rupees(-diff)} cheaper on ${other}`
+              : `${rupees(diff)} cheaper here on ${here}`}
+        </p>
+      )}
+      {differences.length > 0 && <p className="small">Differs: {differences.join(" · ")}</p>}
+      <p className="muted small listing-title">{listing.title}{listing.variant ? ` (${listing.variant})` : ""}</p>
+      <a className="open-link" href={listing.url} target="_blank" rel="noopener noreferrer">
+        Open on {other} ↗
+      </a>
+      <p className="muted tiny">Listed prices only; coupons, bank offers and sellers may differ.</p>
+    </section>
   );
 }
 

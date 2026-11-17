@@ -4,13 +4,14 @@ Run from backend/:  .venv/bin/python -m evals.guardrail_eval
 """
 import asyncio
 import re
+from typing import Optional
 
 from dotenv import load_dotenv
 
 load_dotenv(".env")
 
 from app import llm  # noqa: E402
-from app.schemas import ChatMessage, ChatRequest, Product  # noqa: E402
+from app.schemas import ChatMessage, ChatRequest, Comparison, Product  # noqa: E402
 
 PRODUCT = Product(
     site="amazon",
@@ -57,13 +58,43 @@ CHOICE = [
 ]
 
 
+# Price questions with cross-site data attached. Every ₹ figure in the answer must come from the data
+# (the product price, the other listing's price, or their difference): no invented prices.
+CHEAPER = "Is it cheaper on Flipkart?"
+PRICE = [
+    (
+        "same",
+        Comparison(site="flipkart", verdict="same", title="Clovia Women High-Rise Active Shorts (Black, M)",
+                   price=449, rating=4.1, rating_count=312),
+        {486, 449, 37},
+        r"449",
+    ),
+    (
+        "variant",
+        Comparison(site="flipkart", verdict="variant", title="Clovia Women High-Rise Active Shorts (Black, L)",
+                   price=399, rating=4.1, rating_count=312, differences=["size L vs M"]),
+        {486, 399, 87},
+        r"variant|size|not (exactly )?the same|different",
+    ),
+    ("none", None, {486}, r""),
+]
+
+
+def rupee_figures(answer: str) -> set:
+    return {int(n.replace(",", "")) for n in re.findall(r"(?:₹|rs\.?\s?|inr\s?)\s?([\d,]+)", answer, re.I)}
+
+
+def price_ok(answer: str, allowed: set, must: str) -> bool:
+    return rupee_figures(answer) <= allowed and bool(re.search(must, answer, re.I))
+
+
 def first_line_picks(answer: str, pattern: str) -> bool:
     line = answer.strip().splitlines()[0] if answer.strip() else ""
     return bool(re.search(pattern, line, re.I)) and not re.match(r"\W*(mostly\s+)?(yes|no)\b", line, re.I)
 
 
-async def ask(question: str) -> str:
-    req = ChatRequest(product=PRODUCT, messages=[ChatMessage(role="user", content=question)])
+async def ask(question: str, comparison: Optional[Comparison] = None) -> str:
+    req = ChatRequest(product=PRODUCT, comparison=comparison, messages=[ChatMessage(role="user", content=question)])
     return "".join([chunk async for chunk in llm.stream_chat(req)]).strip()
 
 
@@ -79,6 +110,9 @@ async def main() -> None:
         + [(q, "choice", pattern) for q, pattern in CHOICE]
     )
     answers = await asyncio.gather(*(ask(q) for q, _, _ in cases))
+    price_answers = await asyncio.gather(*(ask(CHEAPER, comp) for _, comp, _, _ in PRICE))
+    cases += [(f"{CHEAPER} (match: {name})", "price", (allowed, must)) for name, _, allowed, must in PRICE]
+    answers += list(price_answers)
     passed = 0
     for (question, kind, extra), answer in zip(cases, answers):
         note = ""
@@ -88,6 +122,9 @@ async def main() -> None:
             note = "  (declined whole message: over-cautious)" if declined(answer) else ""
         elif kind == "choice":
             ok = first_line_picks(answer, extra)
+        elif kind == "price":
+            ok = price_ok(answer, *extra)
+            note = f"  (₹ figures: {sorted(rupee_figures(answer))})"
         else:
             ok = declined(answer) == (kind == "off")
         passed += ok

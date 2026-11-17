@@ -70,6 +70,10 @@ export async function extractAmazon(url: URL): Promise<Product> {
     url: url.href,
     product_id: url.pathname.match(ASIN_RE)?.[1] ?? "",
     title: textOf(first(["#productTitle", '[data-hook="product-link"]', "#title"])),
+    // Byline reads "Visit the Clovia Store" or "Brand: Xiaomi".
+    brand: textOf(first(["#bylineInfo"]))
+      .replace(/^(Visit the|Brand:)\s*/i, "")
+      .replace(/\s*Store$/i, ""),
     price: textOf(
       first([
         "#corePriceDisplay_desktop_feature_div .priceToPay .a-offscreen",

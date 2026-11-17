@@ -17,6 +17,7 @@ class Product(BaseModel):
     url: str = Field(max_length=2000)
     product_id: str = Field("", max_length=100)
     title: str = Field("", max_length=500)
+    brand: str = Field("", max_length=100)
     price: str = Field("", max_length=50)
     rating: Optional[float] = None
     rating_count: str = Field("", max_length=100)
@@ -42,6 +43,44 @@ class ProductAnalysis(BaseModel):
     confidence_reason: str
 
 
+class MatchItem(BaseModel):
+    title: str = Field(max_length=500)
+    variant: str = Field("", max_length=200)
+    brand: str = Field("", max_length=100)
+
+
+class MatchSource(MatchItem):
+    site: Literal["amazon", "flipkart"]
+
+
+class MatchRequest(BaseModel):
+    source: MatchSource
+    candidates: List[MatchItem] = Field(min_length=1, max_length=6)
+
+
+class MatchVerdict(BaseModel):
+    index: int
+    verdict: Literal["same", "variant", "different"]
+    differences: List[str]
+    reason: str
+
+
+class MatchVerdicts(BaseModel):
+    verdicts: List[MatchVerdict]
+
+
+class Comparison(BaseModel):
+    """Other-site listing shown to the user; numbers are scraped, not model output."""
+
+    site: Literal["amazon", "flipkart"]
+    verdict: Literal["same", "variant"]
+    title: str = Field(max_length=500)
+    price: Optional[float] = None
+    rating: Optional[float] = None
+    rating_count: Optional[int] = None
+    differences: List[str] = Field(default_factory=list, max_length=5)
+
+
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str = Field(max_length=4000)
@@ -50,4 +89,5 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     product: Product
     analysis: Optional[ProductAnalysis] = None
+    comparison: Optional[Comparison] = None
     messages: List[ChatMessage] = Field(min_length=1, max_length=40)

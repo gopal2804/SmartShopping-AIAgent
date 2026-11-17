@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import StreamingResponse  # noqa: E402
 
 from . import llm  # noqa: E402
-from .schemas import ChatRequest, Product, ProductAnalysis  # noqa: E402
+from .schemas import ChatRequest, MatchRequest, MatchVerdicts, Product, ProductAnalysis  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(name)s: %(message)s")
 logger = logging.getLogger("smart_shopping_agent")
@@ -38,6 +38,15 @@ async def analyze(product: Product) -> ProductAnalysis:
         return await llm.analyze_product(product)
     except Exception as exc:
         logger.exception("Analysis failed")
+        raise HTTPException(status_code=502, detail=f"LLM call failed: {exc}") from exc
+
+
+@app.post("/api/match", response_model=MatchVerdicts)
+async def match(req: MatchRequest) -> MatchVerdicts:
+    try:
+        return MatchVerdicts(verdicts=await llm.verify_matches(req))
+    except Exception as exc:
+        logger.exception("Match failed")
         raise HTTPException(status_code=502, detail=f"LLM call failed: {exc}") from exc
 
 

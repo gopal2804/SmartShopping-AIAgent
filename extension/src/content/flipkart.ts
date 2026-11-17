@@ -142,6 +142,7 @@ export function extractFlipkart(url: URL): Product {
     url: url.href,
     product_id: url.searchParams.get("pid") ?? "",
     title: ld?.name || fallbackTitle(),
+    brand: ld?.brand ?? "",
     price: ld?.price || firstRupeeLeaf(),
     rating: ld?.rating ?? null,
     rating_count: ld?.ratingCount || (document.body.innerText.match(/[\d,]+ ratings and [\d,]+ reviews/)?.[0] ?? ""),
