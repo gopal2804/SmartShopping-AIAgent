@@ -143,6 +143,10 @@ button.ghost { background: transparent; }
   border: 1px solid var(--border); background: var(--bg); color: var(--text);
 }
 .watch-row span { flex: 1; }
+.reset-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.reset-row span { flex: 1; }
+button.link { background: none; border: none; padding: 0; color: var(--muted); text-decoration: underline; font-size: 12px; }
+button.danger { color: var(--bad); border-color: var(--bad); }
 
 .chat h3 { margin-top: 0; }
 .messages { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; margin-bottom: 8px; }

@@ -4,7 +4,7 @@ import { dedupeReviews } from "../content/common";
 import { priceInsight } from "../prices/insight";
 import type { PriceHistory, WatchItem } from "../prices/model";
 import { toNumber } from "../prices/parse";
-import { getHistory, getWatchlist, recordPrice, unwatch, watch } from "../prices/store";
+import { clearHistory, getHistory, getWatchlist, recordPrice, unwatch, watch } from "../prices/store";
 import { CHECK_PRICES_MESSAGE } from "../types";
 import type { ChatMessage, Comparison, Product, ProductAnalysis, Review, Site, Theme, TrustReport } from "../types";
 import {
@@ -275,6 +275,15 @@ export default function App() {
     await loadPrices(pageProduct, productKey.current);
   }
 
+  async function resetHistory() {
+    if (!pageProduct) return;
+    const ref = productRef(pageProduct);
+    await clearHistory(ref.site, ref.id);
+    const price = toNumber(pageProduct.price);
+    if (price !== null) await recordPrice(ref, price);
+    await loadPrices(pageProduct, productKey.current);
+  }
+
   async function checkWatchedNow(): Promise<string> {
     const res = await chrome.runtime.sendMessage({ type: CHECK_PRICES_MESSAGE });
     if (pageProduct) await loadPrices(pageProduct, productKey.current);
@@ -400,6 +409,7 @@ export default function App() {
               onWatch={startWatching}
               onUnwatch={stopWatching}
               onCheckNow={checkWatchedNow}
+              onReset={resetHistory}
             />
           )}
 

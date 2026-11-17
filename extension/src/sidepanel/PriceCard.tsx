@@ -42,16 +42,19 @@ export function PriceCard({
   onWatch,
   onUnwatch,
   onCheckNow,
+  onReset,
 }: {
   history: PriceHistory | null;
   watching: WatchItem | null;
   onWatch: (target: number | null) => Promise<void>;
   onUnwatch: () => Promise<void>;
   onCheckNow: () => Promise<string>;
+  onReset: () => Promise<void>;
 }) {
   const [target, setTarget] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
+  const [confirmReset, setConfirmReset] = useState(false);
   const insight = history ? priceInsight(history.points, Date.now()) : null;
   if (!history || !insight) {
     return <section className="card muted small">Price tracking starts once the price on this page is read.</section>;
@@ -104,6 +107,27 @@ export function PriceCard({
         </form>
       )}
       {note && <p className="muted small">{note}</p>}
+      <div className="reset-row small">
+        {confirmReset ? (
+          <>
+            <span>Delete all {history.points.length} readings for this product?</span>
+            <button
+              className="ghost danger"
+              disabled={busy}
+              onClick={() => run(async () => {
+                await onReset();
+                setConfirmReset(false);
+                return "History reset. The current price is the first reading.";
+              })}
+            >
+              Delete
+            </button>
+            <button className="ghost" disabled={busy} onClick={() => setConfirmReset(false)}>Cancel</button>
+          </>
+        ) : (
+          <button className="link" onClick={() => setConfirmReset(true)}>Reset history</button>
+        )}
+      </div>
       <p className="muted tiny">
         History is recorded in this browser only, from when you first viewed the product. Past prices before that aren't
         known, and future prices aren't predicted.

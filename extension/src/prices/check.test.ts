@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { runPriceCheck } from "./check";
 import { DAY } from "./model";
-import { getHistory, getWatchlist, recordPrice, watch } from "./store";
+import { clearHistory, getHistory, getWatchlist, recordPrice, watch } from "./store";
 
 // In-memory stand-in for chrome.storage.local.
 let store: Record<string, unknown>;
@@ -12,6 +12,7 @@ beforeEach(() => {
       local: {
         get: async (key: string) => (key in store ? { [key]: structuredClone(store[key]) } : {}),
         set: async (items: Record<string, unknown>) => Object.assign(store, structuredClone(items)),
+        remove: async (key: string) => void delete store[key],
       },
     },
   });
@@ -72,6 +73,17 @@ describe("runPriceCheck", () => {
     const list = await getWatchlist();
     expect(list.map((w) => w.id).sort()).toEqual(["B0TEST", "PID1"]);
     expect(list.find((w) => w.id === "B0TEST")!.lastCheckedAt).toBe(T0 + DAY);
+  });
+
+  it("resetting history removes bad readings but keeps the product watched", async () => {
+    await recordPrice(product, 25887, T0); // e.g. an ad's price read by mistake
+    await recordPrice(product, 19498, T0 + DAY);
+    await watch({ ...product, target: 19000 });
+    await clearHistory("amazon", "B0TEST");
+    expect(await getHistory("amazon", "B0TEST")).toBeNull();
+    expect((await getWatchlist()).map((w) => w.target)).toEqual([19000]);
+    await recordPrice(product, 19498, T0 + 2 * DAY);
+    expect((await getHistory("amazon", "B0TEST"))!.points.map((p) => p.p)).toEqual([19498]);
   });
 
   it("caps the watchlist size", async () => {

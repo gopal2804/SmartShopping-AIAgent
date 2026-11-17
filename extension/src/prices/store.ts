@@ -24,6 +24,11 @@ export async function recordPrice(
   return { history, accepted, reason };
 }
 
+/** Deletes a product's readings (e.g. after a bad reading). The watchlist entry, if any, is kept. */
+export async function clearHistory(site: Site, id: string): Promise<void> {
+  await chrome.storage.local.remove(historyKey(site, id));
+}
+
 export async function getWatchlist(): Promise<WatchItem[]> {
   return ((await chrome.storage.local.get(WATCHLIST))[WATCHLIST] as WatchItem[] | undefined) ?? [];
 }
