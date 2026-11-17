@@ -11,8 +11,50 @@ import {
   type TrustReport,
 } from "../types";
 
-export const BACKEND_URL = "http://localhost:8000";
+// Set VITE_BACKEND_URL at build time for a hosted backend; local development uses localhost.
+export const BACKEND_URL: string = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
 const SUPPORTED_HOSTS = ["www.amazon.in", "www.flipkart.com"];
+const TOKEN_KEY = "installToken";
+
+let tokenRequest: Promise<string> | null = null;
+
+/** Anonymous install token from POST /api/register, kept in chrome.storage.local. */
+function installToken(): Promise<string> {
+  tokenRequest ??= (async () => {
+    const stored = (await chrome.storage.local.get(TOKEN_KEY))[TOKEN_KEY];
+    if (typeof stored === "string" && stored) return stored;
+    const res = await fetch(`${BACKEND_URL}/api/register`, { method: "POST" });
+    if (!res.ok) throw new Error(await errorDetail(res));
+    const { token } = await res.json();
+    await chrome.storage.local.set({ [TOKEN_KEY]: token });
+    return token as string;
+  })().catch((err) => {
+    tokenRequest = null; // allow a retry on the next request
+    throw err;
+  });
+  return tokenRequest;
+}
+
+/** fetch() to the backend with the install token; re-registers once if the server no longer knows it. */
+async function apiFetch(path: string, init: RequestInit, retry = true): Promise<Response> {
+  const token = await installToken();
+  const res = await fetch(`${BACKEND_URL}${path}`, {
+    ...init,
+    headers: { ...(init.headers as Record<string, string>), Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 401 && retry) {
+    await chrome.storage.local.remove(TOKEN_KEY);
+    tokenRequest = null;
+    return apiFetch(path, init, false);
+  }
+  return res;
+}
+
+const jsonPost = (body: unknown): RequestInit => ({
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body),
+});
 
 async function sendToActiveTab<T>(type: string): Promise<T | { ok: false; reason: string }> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -36,31 +78,26 @@ export function getMoreReviews(): Promise<MoreReviewsResponse> {
   return sendToActiveTab<MoreReviewsResponse>(MORE_REVIEWS_MESSAGE);
 }
 
+/** The server sends {detail: {code, message}} for limits, budget and auth; show its message as-is. */
 async function errorDetail(res: Response): Promise<string> {
   try {
     const data = await res.json();
-    return typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
+    if (typeof data.detail === "string") return data.detail;
+    if (typeof data.detail?.message === "string") return data.detail.message;
+    return `Request failed (HTTP ${res.status}).`;
   } catch {
-    return `HTTP ${res.status}`;
+    return `Request failed (HTTP ${res.status}).`;
   }
 }
 
 export async function analyzeProduct(product: Product): Promise<ProductAnalysis> {
-  const res = await fetch(`${BACKEND_URL}/api/analyze`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(product),
-  });
+  const res = await apiFetch("/api/analyze", jsonPost(product));
   if (!res.ok) throw new Error(await errorDetail(res));
   return res.json();
 }
 
 export async function checkTrust(product: Product): Promise<TrustReport> {
-  const res = await fetch(`${BACKEND_URL}/api/trust`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(product),
-  });
+  const res = await apiFetch("/api/trust", jsonPost(product));
   if (!res.ok) throw new Error(await errorDetail(res));
   return res.json();
 }
@@ -76,11 +113,7 @@ export async function verifyMatches(
   source: { site: Site; title: string; brand: string },
   candidates: { title: string; variant: string; brand: string }[]
 ): Promise<MatchVerdictDto[]> {
-  const res = await fetch(`${BACKEND_URL}/api/match`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ source, candidates }),
-  });
+  const res = await apiFetch("/api/match", jsonPost({ source, candidates }));
   if (!res.ok) throw new Error(await errorDetail(res));
   return (await res.json()).verdicts;
 }
@@ -120,11 +153,7 @@ export async function streamChat(
   },
   onChunk: (text: string) => void
 ): Promise<void> {
-  const res = await fetch(`${BACKEND_URL}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const res = await apiFetch("/api/chat", jsonPost(body));
   if (!res.ok || !res.body) throw new Error(await errorDetail(res));
 
   const reader = res.body.getReader();

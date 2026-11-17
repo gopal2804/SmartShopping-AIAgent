@@ -9,7 +9,7 @@ from typing import AsyncIterator, Dict, List, Optional
 
 from openai import AsyncOpenAI
 
-from . import trust
+from . import trust, usage
 from .schemas import ChatRequest, MatchRequest, MatchVerdict, MatchVerdicts, Product, ProductAnalysis, TrustReport
 
 MODEL = os.getenv("OPENAI_MODEL", "gpt-6-luna")
@@ -172,6 +172,7 @@ async def summarize_trust(report: TrustReport) -> str:
             input=json.dumps(payload, ensure_ascii=False),
             reasoning={"effort": CHAT_REASONING_EFFORT},
         )
+        usage.store().record_spend(response.usage, "trust_summary")
         summary = response.output_text.strip()
     except Exception:
         logger.exception("Trust summary failed; using template")
@@ -239,6 +240,7 @@ async def analyze_product(product: Product) -> ProductAnalysis:
         reasoning={"effort": ANALYSIS_REASONING_EFFORT},
     )
     logger.info("analysis: %d reviews, %.1fs, usage=%s", len(product.reviews), time.perf_counter() - started, response.usage)
+    usage.store().record_spend(response.usage, "analysis")
     analysis = response.output_parsed
     if analysis is None:
         raise RuntimeError("Model returned no structured analysis")
@@ -281,6 +283,7 @@ async def verify_matches(req: MatchRequest) -> List[MatchVerdict]:
         reasoning={"effort": MATCH_REASONING_EFFORT},
     )
     logger.info("match: %d candidates, %.1fs", len(req.candidates), time.perf_counter() - started)
+    usage.store().record_spend(response.usage, "match")
     parsed = response.output_parsed
     verdicts = _sanitize_verdicts(parsed.verdicts if parsed else [], len(req.candidates))
     _match_cache[key] = verdicts
@@ -348,3 +351,4 @@ async def stream_chat(req: ChatRequest) -> AsyncIterator[str]:
                 time.perf_counter() - started,
                 event.response.usage,
             )
+            usage.store().record_spend(event.response.usage, "chat")

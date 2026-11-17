@@ -218,11 +218,28 @@ Goal: anyone can add the extension to Chrome and use it without running anything
 ### Planned steps
 
 1. ✅ **CI and releases.** [`ci.yml`](.github/workflows/ci.yml) runs on every push and pull request: extension unit tests + type-check + build, and backend import checks + the code-only trust eval on Python 3.10 and 3.12. [`release.yml`](.github/workflows/release.yml) runs when a `vX.Y.Z` tag is pushed: it checks the tag matches `manifest.json`, re-runs tests and build, and attaches `smart-shopping-agent-vX.Y.Z.zip` to a GitHub Release. To release: bump `version` in `extension/public/manifest.json` and `extension/package.json`, commit, then `git tag -a vX.Y.Z -m "…" && git push origin vX.Y.Z`. The OpenAI-backed evals stay manual (they cost money and need the API key).
-2. **Protect the API.** Anonymous per-install token, per-install daily limits, a global daily OpenAI spend cap, request/cost logging. (Today CORS restricts browsers but isn't authentication.)
+2. ✅ **Protect the API.** See [API protection](#api-protection) below.
 3. **Host the backend.** Container image, deployed to a managed host (e.g. Render, Railway or Fly.io) with the OpenAI key as a secret; health checks.
 4. **Point the extension at it.** Configurable backend URL, manifest `host_permissions` for the hosted domain, clear errors when the service is unavailable or a limit is reached.
 5. **Publish.** Privacy policy page, permission justifications, store screenshots and description; Chrome Web Store submission (starting unlisted is the lower-risk option).
 6. **Keep it working.** Daily check that extraction, matching and prices still work on a set of known Amazon/Flipkart products, alerting when a site changes its pages.
+
+### API protection
+
+The backend pays for every model call with the project's OpenAI key, so a public deployment needs guard rails:
+
+| Layer | How it works | Default (env var) |
+|---|---|---|
+| **Install token** | On first use the extension calls `POST /api/register` and gets an anonymous token signed with `APP_SECRET` (HMAC). Every AI route requires it (`Authorization: Bearer …`); missing or forged tokens get 401. If the server forgets a token (e.g. new secret), the extension re-registers once automatically. | `APP_SECRET` (required in production) |
+| **Registration limit** | New tokens per client IP per day, so tokens can't be minted in bulk. | 10 (`LIMIT_REGISTRATIONS_PER_IP_PER_DAY`) |
+| **Daily limits per install** | Counted per Indian calendar day (resets at midnight IST); 429 with a friendly message when reached. | analyze 20 · chat 100 · match 60 · trust 60 (`LIMIT_*_PER_DAY`) |
+| **Monthly spend cap** | Each OpenAI response's reported token usage is priced and added up; once the month's spend reaches the cap, AI routes return 503 "paused for the rest of the month". | US$10 (`MONTHLY_BUDGET_USD`, prices in `PRICE_*_PER_M`) |
+| **Safe errors** | Clients get `{code, message}`; exception details stay in server logs. | — |
+| **Usage report** | `GET /admin/usage` with `X-Admin-Token`: this month's spend, model calls, tokens, today's requests per feature. Disabled unless set. | `ADMIN_TOKEN` |
+
+Measured cost: one real review analysis (~2,600 input + ~570 output tokens on `gpt-6-luna`) ≈ **US$0.0005**, so the default cap covers roughly 20,000 analyses a month.
+
+Honest limits: an anonymous extension can't be fully locked down (anyone can install it and get a token), so the **spend cap is the real backstop**. Also set a monthly budget on the OpenAI project in the OpenAI dashboard. Counters live in SQLite (`USAGE_DB_PATH`); on a host without a persistent disk they reset on redeploy, which loosens limits but never raises the OpenAI-side budget. Tests: `cd backend && .venv/bin/pip install -r requirements-dev.txt && .venv/bin/python -m pytest tests` (10 tests, no OpenAI calls; also run in CI).
 
 ### Decisions (2026-11-17)
 

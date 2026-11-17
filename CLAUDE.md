@@ -14,7 +14,15 @@ A Chrome extension (side panel) for **Amazon.in and Flipkart** plus a **FastAPI 
 - **Features are frozen** after Phase 4. The user asked to stop adding features.
 - **Next: deployment** so anyone can install the extension, driven step by step by the user's requirements. See "Deployment" in README. Don't start new features unless asked.
 - **Deployment decisions:** own OpenAI key behind per-install limits + monthly cap; **public** Chrome Web Store listing; backend on **Render**. Latest progress is at the bottom of docs/PROJECT_LOG.md.
-- **Deployment step 1 (CI + releases) is done**; v0.4.0 released. Next is step 2 (API protection).
+- **Deployment steps 1 (CI + releases) and 2 (API protection) are done**; v0.4.0 released. Next is step 3 (host on Render).
+
+## API protection (backend)
+
+- AI routes use `Depends(guarded("<bucket>"))` in `main.py`: valid HMAC install token (`security.py`), monthly budget left, per-install daily limit (`usage.py`, SQLite). New AI routes must use it too.
+- Every OpenAI call must report cost: `usage.store().record_spend(response.usage, "<kind>")` in `llm.py`.
+- Errors to clients are `{code, message}` (`auth`, `limit`, `budget`, `upstream`, `no_data`); never put exception text in responses.
+- Settings come from env (`app/config.py`, documented in `backend/.env.example`). Tests: `backend/tests` (pytest, fakes for the model).
+- Extension: all backend calls go through `apiFetch` in `sidepanel/api.ts` (adds the token, re-registers on 401). Backend URL = `VITE_BACKEND_URL` at build time.
 
 ## CI / releases
 
@@ -44,6 +52,7 @@ extension/src/background.ts + offscreen.ts  chrome.alarms price checks; offscree
 cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000
 # extension: build, then chrome://extensions → Load unpacked → extension/dist
 cd extension && npm run build && npm test          # 37 vitest tests (jsdom for HTML fixtures)
+cd backend && .venv/bin/python -m pytest tests          # 10 API-protection tests (needs requirements-dev.txt)
 cd backend && .venv/bin/python -m evals.guardrail_eval   # 22 chat checks
 cd backend && .venv/bin/python -m evals.match_eval --runs 3
 cd backend && .venv/bin/python -m evals.trust_eval

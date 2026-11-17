@@ -38,10 +38,10 @@ function toPriceDto(history: PriceHistory | null, comparison: ComparisonDto | nu
   };
 }
 
-type TrustState = { key: string; status: "loading" } | { key: string; status: "done"; report: TrustReport } | {
-  key: string;
-  status: "error";
-};
+type TrustState =
+  | { key: string; status: "loading" }
+  | { key: string; status: "done"; report: TrustReport }
+  | { key: string; status: "error"; message: string };
 
 const TRUST_LEVEL: Record<TrustReport["level"], { label: string; tone: string }> = {
   insufficient: { label: "Not enough reviews to check", tone: "neutral" },
@@ -231,7 +231,7 @@ export default function App() {
     setTrust({ key, status: "loading" });
     checkTrust(product)
       .then((report) => productKey.current === key && setTrust({ key, status: "done", report }))
-      .catch(() => productKey.current === key && setTrust({ key, status: "error" }));
+      .catch((err) => productKey.current === key && setTrust({ key, status: "error", message: backendError(err) }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product, extra.status, extra.key, trust?.key]);
 
@@ -462,7 +462,11 @@ function CompareCard({
     return <section className="card compare muted small">Checking {other} for the same product…</section>;
   }
   if (comparison.status === "error") {
-    return <section className="card compare muted small">Couldn't check {other} right now.</section>;
+    return (
+      <section className="card compare muted small">
+        Couldn't check {other} right now. {backendError(new Error(comparison.message))}
+      </section>
+    );
   }
   if (!comparison.match) {
     return (
@@ -524,7 +528,9 @@ function CompareCard({
 
 function TrustCard({ trust }: { trust: TrustState }) {
   if (trust.status === "loading") return <section className="card muted small">Checking review patterns…</section>;
-  if (trust.status === "error") return <section className="card muted small">Couldn't check review patterns right now.</section>;
+  if (trust.status === "error") {
+    return <section className="card muted small">Couldn't check review patterns right now. {trust.message}</section>;
+  }
   const { report } = trust;
   const level = TRUST_LEVEL[report.level];
   return (
