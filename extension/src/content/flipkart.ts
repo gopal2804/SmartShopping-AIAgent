@@ -1,0 +1,185 @@
+import type { Product, Review, ReviewSource } from "../types";
+import {
+  clean,
+  collectReviewPages,
+  dedupeReviews,
+  formatBreakdown,
+  pageText,
+  parseRating,
+  readJsonLdProduct,
+  textLines,
+  textOf,
+  type MoreReviewsResult,
+} from "./common";
+
+// Flipkart uses obfuscated, frequently changing class names, so this extractor relies on
+// structured data and visible-text patterns instead of CSS classes.
+
+export function isFlipkartProductPage(url: URL): boolean {
+  return url.hostname === "www.flipkart.com" && /\/(p|product-reviews)\/itm/.test(url.pathname);
+}
+
+function firstRupeeLeaf(): string {
+  for (const el of Array.from(document.querySelectorAll("div, span"))) {
+    if (el.children.length === 0 && /^₹\s?[\d,]+(\.\d+)?$/.test(textOf(el))) return textOf(el);
+  }
+  return "";
+}
+
+const BADGE_RE = /Certified Buyer|Verified Purchase/g;
+const NOISE_RE = /^(•|READ MORE|Permalink|Report Abuse|Helpful for \d+|Helpful|\d+)$/i;
+const RATING_RE = /^[1-5](\.\d)?$/;
+
+function countBadges(el: Element): number {
+  return (el.textContent?.match(BADGE_RE) ?? []).length;
+}
+
+// A review card's text lines look like:
+// ["5.0", "•", "Super!", "Review for: Color …", <body lines…>, "<author>", ", <city>", "8", "46", "Verified Purchase · Aug, 2025"]
+// The rating line or the "Review for:" line can be missing.
+function parseReviewCard(container: Element): Review {
+  const lines = textLines(container);
+  const ratingIdx = lines.findIndex((l) => RATING_RE.test(l));
+  const variantIdx = lines.findIndex((l) => /^Review for:/i.test(l));
+
+  let titleIdx = -1;
+  let bodyStart = -1;
+  if (variantIdx > 0) {
+    titleIdx = variantIdx - 1;
+    bodyStart = variantIdx + 1;
+  } else if (ratingIdx >= 0) {
+    titleIdx = lines.findIndex((l, i) => i > ratingIdx && l !== "•");
+    bodyStart = titleIdx + 1;
+  }
+  const cityIdx = bodyStart > 0 ? lines.findIndex((l, i) => i > bodyStart && l.startsWith(",")) : -1;
+  const bodyLines = cityIdx > bodyStart ? lines.slice(bodyStart, cityIdx - 1).filter((l) => !NOISE_RE.test(l)) : [];
+  const body = bodyLines.length
+    ? bodyLines.join(" ")
+    : lines.reduce((a, b) => (b.length > a.length ? b : a), "");
+
+  return {
+    title: titleIdx >= 0 && lines[titleIdx] !== "•" ? lines[titleIdx] : "",
+    body,
+    rating: ratingIdx >= 0 && ratingIdx < titleIdx ? parseRating(lines[ratingIdx]) : null,
+    date: clean((lines.find((l) => /(ago|\b20\d\d)$/i.test(l)) ?? "").replace(/^.*·\s*/, "")),
+    verified: true,
+  };
+}
+
+function reviewsFromBadges(root: ParentNode): Review[] {
+  const badges = Array.from(root.querySelectorAll("p, span, div")).filter(
+    (el) => el.children.length <= 1 && /^(Certified Buyer|Verified Purchase)/.test(textOf(el))
+  );
+
+  // Each card can contain nested badge elements, so collect unique containers.
+  const containers = new Set<Element>();
+  for (const badge of badges) {
+    // Climb to the largest ancestor that still contains only this one review.
+    let container: Element = badge;
+    for (let i = 0; i < 10 && container.parentElement && countBadges(container.parentElement) === 1; i++) {
+      container = container.parentElement;
+    }
+    containers.add(container);
+  }
+  return Array.from(containers, parseReviewCard);
+}
+
+type Json = Record<string, unknown>;
+
+// Flipkart server-renders star icons as empty placeholders, but embeds the full review
+// objects (with numeric ratings) in window.__INITIAL_STATE__. Prefer that when present.
+function reviewsFromInitialState(root: Document): Review[] {
+  const script = Array.from(root.querySelectorAll("script")).find((s) =>
+    s.textContent?.includes("window.__INITIAL_STATE__")
+  );
+  if (!script?.textContent) return [];
+  let state: unknown;
+  try {
+    const raw = script.textContent;
+    state = JSON.parse(raw.slice(raw.indexOf("=") + 1).trim().replace(/;\s*$/, ""));
+  } catch {
+    return [];
+  }
+
+  const found: Json[] = [];
+  const walk = (node: unknown): void => {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) return node.forEach(walk);
+    const obj = node as Json;
+    if (typeof obj.text === "string" && typeof obj.rating === "number" && "reviewPropertyMap" in obj) {
+      found.push(obj);
+      return;
+    }
+    for (const value of Object.values(obj)) walk(value);
+  };
+  walk(state);
+
+  return found.map((r) => ({
+    title: clean(String(r.title ?? "")),
+    body: clean(String(r.text)),
+    rating: r.rating as number,
+    date: clean(String(r.created ?? "")),
+    verified: !!(r.reviewPropertyMap as Json | null)?.VERIFIED_PURCHASE || !!r.certifiedBuyer,
+  }));
+}
+
+function reviewsFromDocument(root: Document): Review[] {
+  const fromState = reviewsFromInitialState(root);
+  return fromState.length ? fromState : reviewsFromBadges(root);
+}
+
+function fallbackTitle(): string {
+  const h1 = textOf(document.querySelector("h1")).replace(/\.\.\.\s*more$/i, "");
+  return h1 || clean(document.title.split(/ Reviews:| Price in India/)[0]);
+}
+
+export function extractFlipkart(url: URL): Product {
+  const ld = readJsonLdProduct();
+  const ldReviews = ld?.reviews.filter((r) => r.body) ?? [];
+
+  return {
+    site: "flipkart",
+    url: url.href,
+    product_id: url.searchParams.get("pid") ?? "",
+    title: ld?.name || fallbackTitle(),
+    price: ld?.price || firstRupeeLeaf(),
+    rating: ld?.rating ?? null,
+    rating_count: ld?.ratingCount || (document.body.innerText.match(/[\d,]+ ratings and [\d,]+ reviews/)?.[0] ?? ""),
+    rating_breakdown: ratingBreakdown(document),
+    features: [],
+    reviews: dedupeReviews([...reviewsFromDocument(document), ...ldReviews]),
+    page_text: pageText(),
+  };
+}
+
+// Review pages show the histogram as separate text lines: "5", "★", "25,175", "4", "★", "10,005", …
+function ratingBreakdown(root: Document): string {
+  const lines = root.body ? textLines(root.body) : [];
+  const counts: Record<number, number> = {};
+  for (let i = 0; i + 2 < lines.length; i++) {
+    if (/^[1-5]$/.test(lines[i]) && lines[i + 1] === "★" && /^[\d,]+$/.test(lines[i + 2])) {
+      counts[Number(lines[i])] ??= Number(lines[i + 2].replace(/,/g, ""));
+    }
+  }
+  return Object.keys(counts).length === 5 ? formatBreakdown(counts) : "";
+}
+
+const FLIPKART_SORT: Record<ReviewSource, string> = {
+  top: "MOST_HELPFUL",
+  critical: "NEGATIVE_FIRST",
+  recent: "MOST_RECENT",
+};
+
+export function fetchMoreFlipkartReviews(url: URL): Promise<MoreReviewsResult> {
+  const reviewsUrl = new URL(url.href.replace("/p/itm", "/product-reviews/itm"));
+  return collectReviewPages({
+    pageUrl: (source, n) => {
+      reviewsUrl.searchParams.set("sortOrder", FLIPKART_SORT[source]);
+      reviewsUrl.searchParams.set("page", String(n));
+      return reviewsUrl.href;
+    },
+    parse: reviewsFromDocument,
+    isLoginWall: (page) => /\/account\/login/.test(page.finalUrl),
+    ratingBreakdown,
+  });
+}
