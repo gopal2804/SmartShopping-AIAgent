@@ -18,14 +18,34 @@ import {
 
 const ASIN_RE = /\/(?:dp|gp\/product|product-reviews)\/([A-Z0-9]{10})/;
 
-// The buy-box price. Scoped to the core price block so EMI ("₹342/month") and coupon prices aren't picked up.
-export const AMAZON_PRICE_SELECTORS = [
-  "#corePriceDisplay_desktop_feature_div .priceToPay .a-offscreen",
-  "#corePriceDisplay_desktop_feature_div .a-price .a-offscreen",
-  "#corePrice_feature_div .a-offscreen",
-  "#priceblock_dealprice",
-  "#priceblock_ourprice",
+// The selling price lives in the core price block's "priceToPay" element. Never read a [data-a-strike]
+// price there: that is the crossed-out M.R.P. EMI ("₹342/month") and coupon prices sit outside this block.
+const PRICE_TO_PAY = [
+  "#corePriceDisplay_desktop_feature_div .priceToPay",
+  "#corePrice_feature_div .priceToPay",
+  "#corePrice_desktop .priceToPay",
+  ".apexPriceToPay",
 ];
+const LEGACY_PRICE = ["#priceblock_dealprice", "#priceblock_ourprice"];
+
+/**
+ * Amazon renders the same price several ways: the screen-reader `.a-offscreen` text (sometimes left
+ * blank), an aria-hidden visible copy, or split `.a-price-whole` / `.a-price-fraction` spans.
+ */
+export function readAmazonPrice(root: ParentNode): string {
+  for (const sel of PRICE_TO_PAY) {
+    const el = root.querySelector(sel);
+    if (!el || el.hasAttribute("data-a-strike")) continue;
+    const candidates = [
+      textOf(el.querySelector(".a-offscreen")),
+      textOf(el.querySelector("[aria-hidden='true']")),
+      `${textOf(el.querySelector(".a-price-whole")).replace(/\.$/, "")}${textOf(el.querySelector(".a-price-fraction")) ? "." + textOf(el.querySelector(".a-price-fraction")) : ""}`,
+    ];
+    const value = candidates.find((c) => /\d/.test(c));
+    if (value) return value.startsWith("₹") ? value : `₹${value}`;
+  }
+  return textOf(first(LEGACY_PRICE, root));
+}
 
 export function isAmazonProductPage(url: URL): boolean {
   return url.hostname === "www.amazon.in" && ASIN_RE.test(url.pathname);
@@ -86,7 +106,7 @@ export async function extractAmazon(url: URL): Promise<Product> {
     brand: textOf(first(["#bylineInfo"]))
       .replace(/^(Visit the|Brand:)\s*/i, "")
       .replace(/\s*Store$/i, ""),
-    price: textOf(first(AMAZON_PRICE_SELECTORS)),
+    price: readAmazonPrice(document),
     rating: parseRating(ratingSource),
     rating_count: textOf(first(["#acrCustomerReviewText", '[data-hook="total-review-count"]'])),
     rating_breakdown: ratingBreakdown(document),

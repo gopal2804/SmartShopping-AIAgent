@@ -488,6 +488,9 @@ function CompareCard({
               : `${rupees(diff)} cheaper here on ${here}`}
         </p>
       )}
+      {verdict === "same" && diff == null && listing.price != null && (
+        <p className="muted small">Couldn't read the price on this {here} page, so no difference is shown.</p>
+      )}
       {differences.length > 0 && <p className="small">Differs: {differences.join(" · ")}</p>}
       <p className="muted small listing-title">{listing.title}{listing.variant ? ` (${listing.variant})` : ""}</p>
       <a className="open-link" href={listing.url} target="_blank" rel="noopener noreferrer">

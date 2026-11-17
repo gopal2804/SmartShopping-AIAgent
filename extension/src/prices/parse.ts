@@ -1,5 +1,5 @@
-import { AMAZON_PRICE_SELECTORS } from "../content/amazon";
-import { first, readJsonLdProduct, textOf } from "../content/common";
+import { readAmazonPrice } from "../content/amazon";
+import { readJsonLdProduct, textOf } from "../content/common";
 import type { Site } from "../types";
 
 /** "₹1,299.00" → 1299. Returns null for empty or non-positive values. */
@@ -15,7 +15,7 @@ export function parseProductPrice(site: Site, doc: Document): number | null {
     if (doc.querySelector("#outOfStock") || /currently unavailable/i.test(textOf(doc.querySelector("#availability")))) {
       return null;
     }
-    return toNumber(textOf(first(AMAZON_PRICE_SELECTORS, doc)));
+    return toNumber(readAmazonPrice(doc));
   }
   return toNumber(readJsonLdProduct(doc)?.price);
 }
