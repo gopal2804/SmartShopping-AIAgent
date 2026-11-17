@@ -1,0 +1,43 @@
+# Project log
+
+Chronological record of what was built, why, and what was learned. Newest phase last. Context and rules for working on the project: [CLAUDE.md](../CLAUDE.md).
+
+## 0. Idea (2026-11-17)
+
+- Goal: an AI project for interviews under `~/Desktop/AI Projects/`. Generic chatbots were rejected as "ChatGPT can already do that"; the user chose a **browser extension**, then the **Smart Shopping Agent** for **Amazon.in + Flipkart**, with **OpenAI** as the LLM provider and a Python FastAPI backend.
+
+## 1. Phase 1: review analysis + product chat
+
+- MV3 extension: React side panel, content script extracts title/price/rating/reviews; background sets side-panel behaviour. Backend `/api/analyze` (structured output: verdict, pros/cons with frequency, best-for, confidence) and `/api/chat` (streaming).
+- Fixes along the way: blank side panel on chat (effect returned `scrollIntoView` Promise); Amazon lazy-loaded reviews; screen-reader hint text in review bodies; Flipkart obfuscated markup → JSON-LD + text patterns.
+- Reading more reviews: background fetch of review pages. Flipkart reviews come from `__INITIAL_STATE__` (stars are empty placeholders in HTML). Amazon review list needs sign-in, ignores `pageNumber` → implemented the "Show more" ajax with `nextPageToken` (inspected in the user's Chrome). Limit raised to 20 pages (~200 reviews).
+- **Balanced sampling**: 50% most-helpful, 30% critical, 20% recent pages, each review tagged with `source`, plus the overall star breakdown so the model doesn't over-count complaints. Fixed Amazon breakdown labels for signed-in users.
+- Performance: chat took ~32 s to first word (reasoning model) → reasoning effort `none`/`minimal`, prompt-cache-friendly context, review prefetch on product detection. Rescan made a full refresh.
+- Guardrails: product-only chat scope (off-topic decline, mixed questions answer only the product part), either/or questions name the option the reviews support. Evals in `guardrail_eval.py`.
+- Model choice: benchmarked 7 models over 5 runs (`model_bench.py`); `gpt-6-luna` won on answer quality (sizing 5/5 vs 2/5), length, analysis speed and price.
+- Repo created and pushed; screenshots added to README (personal info blurred).
+
+## 2. Phase 2: cross-site comparison
+
+- Pipeline: build short query → search the other site (Flipkart `__INITIAL_STATE__`, Amazon search cards) → rule pre-filter (brand + model numbers, top 5) → AI verifier (titles only, `same|variant|different`, validated) → rule veto on conflicting specs (GB, ml, W, pack…). "Same" requires both.
+- Prices in the card are scraped, never generated; links only on amazon.in/flipkart.com. Chat gets the comparison numbers with a price-honesty rule.
+- Evals: 27 labelled pairs incl. injection → 81/81, 0 false "same". Live: OnePlus Nord CE6 Lite ₹2,860 cheaper on Flipkart. Fixed: cycling vs active shorts called "variant"; Amazon ad duplicates.
+- Later: variant matches also show a neutral, caveated price difference.
+
+## 3. Phase 3: review trust signals
+
+- `backend/app/trust.py` (no LLM): 5-star bursts (excludes "recent" sample, needs ≥15 exact dates, ≥60-day span), near-duplicate wording (trigram Jaccard ≥ 0.5), unverified share ≥ 30%, reward-for-review mentions (patterns tested against innocent phrasings).
+- Model writes a 1–2 sentence summary; validator rejects new numbers or accusatory words → template fallback. Card says "signals, not proof".
+- Fixes: dedupe by review ID so copy-paste reviews survive; emoji-safe truncation (split surrogate made the backend reject requests).
+- Evals: 8/8 planted/edge cases, 0/40 false alarms, real products clean. Chat answers "are these reviews fake?" without accusations.
+
+## 4. Phase 4: price tracking + alerts
+
+- History in `chrome.storage.local` (every product view + confirmed cross-site match), deterministic verdict (≥3 readings over ≥3 days), watchlist (≤20) re-checked every 6 h via `chrome.alarms` + offscreen document, Chrome notifications with anti-spam rules, suspect-reading filter (>3× jump), Reset history.
+- Chat "buy now or wait?" uses recorded numbers only, no forecasts (eval handles hedges like "can't tell whether it will fall").
+- Price-reading bugs fixed after real use: Amazon blank `.a-offscreen` (MacBook Neo) → `readAmazonPrice`; Flipkart read an ad's price (Philips ₹25,887 instead of Honeywell ₹19,498) → sku-matched JSON-LD + first non-struck price after `<h1>`.
+- Tests: 37 extension unit tests; chat eval 22/22.
+
+## 5. Next: deployment (started 2026-11-17)
+
+- User froze features and wants the extension installable by anyone. Plan and open decisions are in README → "Deployment". Decisions are made with the user step by step; record them here as they're made.

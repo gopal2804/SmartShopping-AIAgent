@@ -7,6 +7,8 @@ A neutral shopping assistant for **Amazon.in** and **Flipkart**, as a Chrome sid
 - **Phase 3:** review trust check: unusual review patterns (bursts, copy-paste, unverified buyers, rewards for reviews), measured by code and explained without accusations.
 - **Phase 4:** price tracking and alerts: history recorded in your browser, a "good time to buy?" verdict from observed prices, and Chrome notifications for watched products.
 
+> **Status:** features are complete for v0.4. Current focus is **deployment** so anyone can install the extension: see [Deployment](#deployment). Today it runs locally (backend on `localhost:8000`, extension loaded unpacked).
+
 ## Screenshots
 
 | Verdict: Recommended | Verdict: Consider alternatives |
@@ -190,11 +192,40 @@ cd backend && .venv/bin/python -m evals.model_bench gpt-6-luna gpt-5-mini --runs
 
 `gpt-6-luna` was chosen from that benchmark (5 runs each). Time to first word is the same (median 0.7 s for both), but it finishes sooner (2.0 s vs 2.7 s median) because answers are shorter, its sizing answer followed the review evidence 5/5 times vs 2/5, and it is cheaper. Both passed 60/60 guardrail checks with 0 leaks. An explicit prompt rule for either/or questions ("name the option the reviews point to") later raised both models to 10/10 on the choice checks.
 
+## Deployment
+
+Goal: anyone can add the extension to Chrome and use it without running anything locally. Work proceeds step by step from agreed requirements; decisions are recorded in [docs/PROJECT_LOG.md](docs/PROJECT_LOG.md).
+
+### What has to change from the local setup
+
+| Today (local) | Deployed |
+|---|---|
+| Backend on `localhost:8000` | Backend hosted on a public HTTPS URL |
+| Your OpenAI key, used only by you | Either a hosted key protected by per-install limits and a spending cap, or each user brings their own key |
+| Backend URL hard-coded in the extension | Configurable, defaulting to the hosted URL |
+| "Load unpacked" from `extension/dist` | Chrome Web Store listing (public or unlisted) and/or a release zip |
+| No auth on the API | Requests accepted only from real installs, rate-limited, cost-logged |
+
+### Planned steps
+
+1. **CI and releases.** GitHub Actions runs extension tests + build and backend checks on every push; tagged versions attach a ready-to-install extension zip.
+2. **Protect the API.** Anonymous per-install token, per-install daily limits, a global daily OpenAI spend cap, request/cost logging. (Today CORS restricts browsers but isn't authentication.)
+3. **Host the backend.** Container image, deployed to a managed host (e.g. Render, Railway or Fly.io) with the OpenAI key as a secret; health checks.
+4. **Point the extension at it.** Configurable backend URL, manifest `host_permissions` for the hosted domain, clear errors when the service is unavailable or a limit is reached.
+5. **Publish.** Privacy policy page, permission justifications, store screenshots and description; Chrome Web Store submission (starting unlisted is the lower-risk option).
+6. **Keep it working.** Daily check that extraction, matching and prices still work on a set of known Amazon/Flipkart products, alerting when a site changes its pages.
+
+### Open decisions
+
+- **Who pays for OpenAI usage:** a hosted key with limits, or users enter their own key.
+- **How people install:** public Chrome Web Store, unlisted listing (link-only), or a GitHub release zip with "Load unpacked".
+- **Where the backend runs:** which hosting provider (needs an account in your name).
+
 ## Roadmap
 
 1. ~~Review summary + product chat~~
 2. ~~Cross-site comparison (matching the same product on Amazon and Flipkart)~~
 3. ~~Review trust signals (bursts, near-duplicate text, unverified share, rewards for reviews) + validated summary~~
 4. ~~Price tracking with history charts and drop alerts for both sites~~
-5. CI (tests + build on every push) and a downloadable release zip
-6. Agent actions (add to wishlist/cart, always with confirmation)
+5. **Deployment** (in progress, see above)
+6. Later, based on requirements: watchlist page, settings page, Hindi/Hinglish, more stores, agent actions with confirmation
