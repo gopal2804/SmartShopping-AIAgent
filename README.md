@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/gopal2804/SmartShopping-AIAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/gopal2804/SmartShopping-AIAgent/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/gopal2804/SmartShopping-AIAgent)](https://github.com/gopal2804/SmartShopping-AIAgent/releases/latest)
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/glgigibfcofhkkekbeahefhkiljneknm?label=Chrome%20Web%20Store)](https://chromewebstore.google.com/detail/smart-shopping-agent/glgigibfcofhkkekbeahefhkiljneknm)
 
 A neutral shopping assistant for **Amazon.in** and **Flipkart**, as a Chrome side panel. It reads a balanced sample of reviews, gives an honest verdict, answers questions about the product, and finds the same product on the other site to compare prices: something the stores' own assistants have no reason to do.
 
@@ -10,7 +11,9 @@ A neutral shopping assistant for **Amazon.in** and **Flipkart**, as a Chrome sid
 - **Phase 3:** review trust check: unusual review patterns (bursts, copy-paste, unverified buyers, rewards for reviews), measured by code and explained without accusations.
 - **Phase 4:** price tracking and alerts: history recorded in your browser, a "good time to buy?" verdict from observed prices, and Chrome notifications for watched products.
 
-> **Status:** features complete; the backend is hosted on Render and the extension uses it (v0.5.0). v0.5.1 is submitted to the Chrome Web Store and awaiting review. Remaining deployment work: daily health checks; see [Deployment](#deployment).
+> **Status:** live. v0.5.1 is published on the [Chrome Web Store](https://chromewebstore.google.com/detail/smart-shopping-agent/glgigibfcofhkkekbeahefhkiljneknm) (approved 2026-11-18) and uses the backend hosted on Render. Remaining deployment work: daily health checks; see [Deployment](#deployment).
+
+**[➕ Add to Chrome](https://chromewebstore.google.com/detail/smart-shopping-agent/glgigibfcofhkkekbeahefhkiljneknm)**
 
 **Interview guide:** architecture, design decisions, how every number was measured, and common questions: [docs/INTERVIEW_PREP.md](docs/INTERVIEW_PREP.md).
 
@@ -48,11 +51,15 @@ Side panel ──fetch──▶ other site's search page (cross-site comparison,
 
 The extension uses the hosted backend at `https://smart-shopping-agent-api.onrender.com`, so there's nothing to run locally.
 
+**From the Chrome Web Store (recommended):** open the [store page](https://chromewebstore.google.com/detail/smart-shopping-agent/glgigibfcofhkkekbeahefhkiljneknm) → **Add to Chrome**, then pin it (puzzle-piece icon → pin).
+
+**Or from a release zip:**
+
 1. Download `smart-shopping-agent-vX.Y.Z.zip` from the [latest release](https://github.com/gopal2804/SmartShopping-AIAgent/releases/latest) and unzip it.
 2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked**, and choose the unzipped folder.
 3. Pin the extension (puzzle-piece icon → pin) so its icon is in the toolbar.
 
-(The Chrome Web Store listing is submitted and in review; the store link will be added here once it's approved.) The hosted backend is on a free plan that sleeps when idle: the first request after a while can take up to a minute, and the side panel says "Waking up the server…" meanwhile.
+The hosted backend is on a free plan that sleeps when idle: the first request after a while can take up to a minute, and the side panel says "Waking up the server…" meanwhile.
 
 ## Development setup
 
@@ -235,7 +242,7 @@ Goal: anyone can add the extension to Chrome and use it without running anything
    4. When the deploy is live, open `https://<service>.onrender.com/health`; it should return `{"status":"ok",…}`.
    5. The generated `ADMIN_TOKEN` (service → Environment) lets you read `GET /admin/usage`.
 4. ✅ **Point the extension at it.** `npm run build` (and every release) bakes in `VITE_BACKEND_URL` from [`extension/.env.production`](extension/.env.production); `npm run build:local` uses `http://localhost:8000`. The manifest's `host_permissions` include the Render host (localhost was removed; local development works through the backend's CORS rule). Opening the side panel pings `/health` to wake the free server and shows "Waking up the server…" if it takes over 3 s. Limit, budget and connection problems are shown as plain messages. Released as v0.5.0.
-5. ✅ **Publish on the Chrome Web Store** (submitted for review 2026-11-17, item ID `glgigibfcofhkkekbeahefhkiljneknm`). [Privacy policy](docs/PRIVACY.md) · [listing kit](docs/store/LISTING.md) (description, single purpose, permission justifications, data-use answers, review notes) · 1280×800 screenshots and 440×280 promo tile in [`docs/store/`](docs/store/). Before writing the policy, the data sent to the backend was tightened: the page-text fallback is only sent when fewer than 3 reviews were read and has greeting/account/delivery-address/PIN lines removed in the browser, and product URLs are reduced to the product ID (no search terms or tracking). Manifest declares `minimum_chrome_version: 116` and the homepage. Package: the v0.5.1 release zip.
+5. ✅ **Publish on the Chrome Web Store**: [live listing](https://chromewebstore.google.com/detail/smart-shopping-agent/glgigibfcofhkkekbeahefhkiljneknm) (submitted 2026-11-17, approved and published publicly 2026-11-18, item ID `glgigibfcofhkkekbeahefhkiljneknm`). [Privacy policy](docs/PRIVACY.md) · [listing kit](docs/store/LISTING.md) (description, single purpose, permission justifications, data-use answers, review notes) · 1280×800 screenshots and 440×280 promo tile in [`docs/store/`](docs/store/). Before writing the policy, the data sent to the backend was tightened: the page-text fallback is only sent when fewer than 3 reviews were read and has greeting/account/delivery-address/PIN lines removed in the browser, and product URLs are reduced to the product ID (no search terms or tracking). Manifest declares `minimum_chrome_version: 116` and the homepage. Package: the v0.5.1 release zip.
 
    How it was submitted (repeat for future versions):
    1. Open the [Developer Dashboard](https://chrome.google.com/webstore/devconsole), sign in with Google, accept the developer agreement and pay the one-time US$5 registration fee.
@@ -284,7 +291,7 @@ Users pay nothing. Everything below is billed to the project owner.
 - **Installation:** **public Chrome Web Store listing.** Requires a Chrome developer account (one-time US$5), a privacy policy, a single-purpose description and justification for each permission and host permission.
 - **Backend hosting:** **Render**, deployed from this GitHub repo, OpenAI key stored as a Render secret. **Free plan to start**, upgrade to Starter + disk (~US$7.25/month) before sharing widely.
 
-Defaults in use (can be changed any time in Render → Environment): daily limits analyze 20 · chat 100 · match 60 · trust 60 per install, US$10 monthly cap, no custom domain. The store listing was written and submitted on 2026-11-17.
+Defaults in use (can be changed any time in Render → Environment): daily limits analyze 20 · chat 100 · match 60 · trust 60 per install, US$10 monthly cap, no custom domain. The store listing was submitted on 2026-11-17 and approved on 2026-11-18 (about one day).
 
 ## Roadmap
 

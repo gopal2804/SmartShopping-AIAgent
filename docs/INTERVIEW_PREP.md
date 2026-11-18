@@ -1,5 +1,7 @@
 # Interview prep: Smart Shopping Agent
 
+**Live:** [Chrome Web Store](https://chromewebstore.google.com/detail/smart-shopping-agent/glgigibfcofhkkekbeahefhkiljneknm) · [GitHub](https://github.com/gopal2804/SmartShopping-AIAgent)
+
 A guide to explaining this project in interviews: the pitch, how it works, the decisions and trade-offs, the numbers (and how each was measured), the bugs worth telling as stories, and likely questions with answers. Details live in the [README](../README.md); history in [PROJECT_LOG.md](PROJECT_LOG.md).
 
 ---
@@ -8,7 +10,7 @@ A guide to explaining this project in interviews: the pitch, how it works, the d
 
 ### 30 seconds
 
-> "I built an AI shopping assistant for Amazon.in and Flipkart as a Chrome extension with a Python FastAPI backend on OpenAI. On any product page it reads up to ~200 reviews and gives an honest verdict, answers questions about the product, finds the same product on the other store to compare prices, flags unusual review patterns, and tracks prices with drop alerts. The stores' own assistants have no reason to send you to a competitor; this one is neutral. The main engineering idea is that code computes every number and the model only judges or narrates, with evals to prove it: 81/81 correct product matches and zero false review alarms. It's deployed with CI/CD, rate limits and a spend cap, and submitted to the Chrome Web Store."
+> "I built an AI shopping assistant for Amazon.in and Flipkart as a Chrome extension with a Python FastAPI backend on OpenAI. On any product page it reads up to ~200 reviews and gives an honest verdict, answers questions about the product, finds the same product on the other store to compare prices, flags unusual review patterns, and tracks prices with drop alerts. The stores' own assistants have no reason to send you to a competitor; this one is neutral. The main engineering idea is that code computes every number and the model only judges or narrates, with evals to prove it: 81/81 correct product matches and zero false review alarms. It's deployed with CI/CD, rate limits and a spend cap, and published on the Chrome Web Store."
 
 ### 2 minutes (add these)
 
