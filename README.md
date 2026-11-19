@@ -10,8 +10,9 @@ A neutral shopping assistant for **Amazon.in** and **Flipkart**, as a Chrome sid
 - **Phase 2:** cross-site comparison ("₹2,860 cheaper on Flipkart"), with conservative AI matching.
 - **Phase 3:** review trust check: unusual review patterns (bursts, copy-paste, unverified buyers, rewards for reviews), measured by code and explained without accusations.
 - **Phase 4:** price tracking and alerts: history recorded in your browser, a "good time to buy?" verdict from observed prices, and Chrome notifications for watched products.
+- **Since launch:** fixes from real user feedback and much better store matching (model numbers, an end-to-end test on real products, a "Report it" button). See the [Changelog](#changelog).
 
-> **Status:** live. v0.5.1 is published on the [Chrome Web Store](https://chromewebstore.google.com/detail/smart-shopping-agent/glgigibfcofhkkekbeahefhkiljneknm) (approved 2026-11-18) and uses the backend hosted on Render. Remaining deployment work: daily health checks; see [Deployment](#deployment).
+> **Status:** live. v0.5.1 is published on the [Chrome Web Store](https://chromewebstore.google.com/detail/smart-shopping-agent/glgigibfcofhkkekbeahefhkiljneknm) (approved 2026-11-18); **v0.6.1 was submitted for review on 2026-11-19** (see [Changelog](#changelog)). It uses the backend hosted on Render, where backend changes go live without store review. Remaining deployment work: daily health checks; see [Deployment](#deployment).
 
 **[➕ Add to Chrome](https://chromewebstore.google.com/detail/smart-shopping-agent/glgigibfcofhkkekbeahefhkiljneknm)**
 
@@ -90,7 +91,7 @@ Then in Chrome: open `chrome://extensions`, turn on **Developer mode**, click **
 
 1. Open a product page on Amazon.in or Flipkart.
 2. Click the extension icon to open the side panel.
-3. Click **Analyze reviews**, then ask questions in the chat.
+3. Click **Analyze reviews** (it unlocks once all review pages are read), then ask questions in the chat.
 
 When you analyze or ask, the extension also fetches up to 30 review pages in the background (~300 reviews, ~15–25 s), using your own browser session. Because "most helpful" sorting skews positive, the pages are split into a balanced sample: 15 most-helpful, 9 critical (lowest-rated first) and 6 most-recent. Each review is tagged with its `source`, and the product's overall star breakdown is sent too, so the model judges *what* goes wrong from critical reviews and *how often* from the real rating distribution. Flipkart works signed-out; Amazon only serves its review list to signed-in users, so sign in to Amazon for the deeper read. The page limit is `MAX_REVIEW_PAGES` in `extension/src/content/common.ts`.
 
@@ -300,6 +301,17 @@ Users pay nothing. Everything below is billed to the project owner.
 - **Backend hosting:** **Render**, deployed from this GitHub repo, OpenAI key stored as a Render secret. **Free plan to start**, upgrade to Starter + disk (~US$7.25/month) before sharing widely.
 
 Defaults in use (can be changed any time in Render → Environment): daily limits analyze 20 · chat 100 · match 150 · trust 60 per install, US$10 monthly cap, no custom domain. The store listing was submitted on 2026-11-17 and approved on 2026-11-18 (about one day).
+
+## Changelog
+
+Extension versions (backend changes deploy to Render automatically after CI and need no store review).
+
+| Version | Date | Changes |
+|---|---|---|
+| **0.6.1** | 2026-11-19 | Reads up to ~300 reviews (30 pages, was ~200); clearer "Report it" button; match limit 60 → 150 per day (a product can need 2 match calls). Submitted to the store. |
+| **0.6.0** | 2026-11-19 | End-to-end recall test on 26 real products (old version 21/26 → 26/26, 0 wrong "same"). Manufacturer model number read from both stores' spec tables: ranking, a fallback search, context for the AI, and a veto for a different model code (HL7756 vs HL7707). "X by Y" brands, better ranking for long titles, a softer filter fallback. Amazon's robot check shows an error instead of "no match". New "Wrong or missing match? Report it" link. |
+| **0.5.2** | 2026-11-19 | First user feedback: "Analyze reviews" waits until all reviews are read; Flipkart "Mi" = Amazon "Xiaomi"; "111 W" = "111W"; renamed products are never "same". |
+| **0.5.1** | 2026-11-18 | First public release on the Chrome Web Store. |
 
 ## Roadmap
 
