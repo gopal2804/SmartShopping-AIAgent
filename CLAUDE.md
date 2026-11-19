@@ -41,7 +41,8 @@ backend/app/trust.py     Deterministic review-pattern signals (no LLM)
 backend/app/schemas.py   Pydantic models (request size limits live here)
 backend/evals/           guardrail_eval, match_eval, trust_eval, model_bench (real OpenAI calls)
 extension/src/content/   Content script: extract product/reviews; amazon.ts, flipkart.ts, common.ts
-extension/src/compare/   Cross-site search + rule pre-filter + AI verify
+extension/src/compare/   Cross-site search (2 queries max) + rule pre-filter + AI verify + model-code veto; report.ts = issue link
+extension/evals/         recall.ts: end-to-end matching recall on live, hand-labelled products
 extension/src/prices/    Price parse/store (chrome.storage.local)/insight/alerts/background check
 extension/src/sidepanel/ React UI (App.tsx, PriceCard.tsx, api.ts)
 extension/src/background.ts + offscreen.ts  chrome.alarms price checks; offscreen doc parses HTML
@@ -53,11 +54,14 @@ extension/src/background.ts + offscreen.ts  chrome.alarms price checks; offscree
 # backend (needs backend/.env with OPENAI_API_KEY; never print or commit it)
 cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000
 # extension: build, then chrome://extensions → Load unpacked → extension/dist
-cd extension && npm run build:local && npm test    # local backend; `npm run build` targets Render. 41 vitest tests
+cd extension && npm run build:local && npm test    # local backend; `npm run build` targets Render. 61 vitest tests
 cd backend && .venv/bin/python -m pytest tests          # 10 API-protection tests (needs requirements-dev.txt)
 cd backend && .venv/bin/python -m evals.guardrail_eval   # 22 chat checks
 cd backend && .venv/bin/python -m evals.match_eval --runs 3
 cd backend && .venv/bin/python -m evals.trust_eval
+# end-to-end matching recall on real products (live sites; run before releasing matching changes):
+cd backend && LIMIT_MATCH_PER_DAY=100000 .venv/bin/uvicorn app.main:app --port 8001   # separate terminal
+cd extension && BACKEND=http://localhost:8001 npx vite-node evals/recall.ts         # cases: evals/recall_cases.json
 ```
 
 Model: `gpt-6-luna` (chosen by `evals/model_bench.py`), chat reasoning effort `none`, analysis/match `low`. Configurable via `.env`.

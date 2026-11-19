@@ -48,7 +48,8 @@ export async function searchFlipkart(query: string): Promise<Listing[]> {
   const script = Array.from(doc.querySelectorAll("script")).find((s) =>
     s.textContent?.includes("window.__INITIAL_STATE__")
   );
-  if (!script?.textContent) return [];
+  // Every real results page (even an empty one) carries the state; without it the page didn't load.
+  if (!script?.textContent) throw new Error("Flipkart's search page didn't load");
   const raw = script.textContent;
   const state = JSON.parse(raw.slice(raw.indexOf("=") + 1).trim().replace(/;\s*$/, ""));
 
@@ -80,6 +81,11 @@ export async function searchFlipkart(query: string): Promise<Listing[]> {
 
 export async function searchAmazon(query: string): Promise<Listing[]> {
   const doc = await fetchDoc(`${ORIGIN.amazon}/s?k=${encodeURIComponent(query)}`);
+  // When Amazon suspects automated traffic it serves a robot check with no results. Saying "no match
+  // among 0 results" would be wrong, so report it as an error instead.
+  if (doc.querySelector('form[action*="validateCaptcha"]') || /Enter the characters you see below/i.test(doc.body?.textContent ?? "")) {
+    throw new Error("Amazon asked for a robot check. Open amazon.in in a tab, then press Rescan");
+  }
   const byAsin = new Map<string, Listing>();
   for (const card of Array.from(doc.querySelectorAll('[data-component-type="s-search-result"]'))) {
     const asin = (card as HTMLElement).dataset.asin ?? "";

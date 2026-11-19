@@ -10,7 +10,7 @@ A guide to explaining this project in interviews: the pitch, how it works, the d
 
 ### 30 seconds
 
-> "I built an AI shopping assistant for Amazon.in and Flipkart as a Chrome extension with a Python FastAPI backend on OpenAI. On any product page it reads up to ~200 reviews and gives an honest verdict, answers questions about the product, finds the same product on the other store to compare prices, flags unusual review patterns, and tracks prices with drop alerts. The stores' own assistants have no reason to send you to a competitor; this one is neutral. The main engineering idea is that code computes every number and the model only judges or narrates, with evals to prove it: 90/90 correct product matches and zero false review alarms. It's deployed with CI/CD, rate limits and a spend cap, and published on the Chrome Web Store."
+> "I built an AI shopping assistant for Amazon.in and Flipkart as a Chrome extension with a Python FastAPI backend on OpenAI. On any product page it reads up to ~200 reviews and gives an honest verdict, answers questions about the product, finds the same product on the other store to compare prices, flags unusual review patterns, and tracks prices with drop alerts. The stores' own assistants have no reason to send you to a competitor; this one is neutral. The main engineering idea is that code computes every number and the model only judges or narrates, with evals to prove it: 0 wrong product matches in 350 judgements, 26/26 real products found across both stores end to end, and zero false review alarms. It's deployed with CI/CD, rate limits and a spend cap, and published on the Chrome Web Store."
 
 ### 2 minutes (add these)
 
@@ -77,6 +77,7 @@ title → short query → other store's search page → rule pre-filter → AI v
 
 - **"Same" needs two votes:** the model says `same` *and* no hard spec conflicts. A wrong "same product" is the worst error (the user buys the wrong thing), so the system prefers "similar listing, check the variant" or "no match".
 - **The model never sees prices.** It judges identity from titles; every price and link in the card is scraped. Links are only built on amazon.in / flipkart.com.
+- **Model number from the spec table** (Amazon "Item model number", Flipkart "Model Number/ID"): ranks listings containing it first, builds a fallback query, goes to the AI, and vetoes a different code from the same family (HL7756 vs HL7707). A second search runs only if the first finds no "same".
 - Example: OnePlus Nord CE6 Lite 8/128 GB was ₹2,860 cheaper on Flipkart; the 6 GB, 256 GB and other-colour listings were correctly labelled variants, and the non-Lite model "different".
 
 ### 3.4 Review trust signals
@@ -117,7 +118,8 @@ The model only writes a 1–2 sentence summary of the computed signals; a valida
 
 | Claim | How it was measured |
 |---|---|
-| **90/90 product matches, 0 false "same"** | `evals/match_eval.py`: 30 hand-labelled pairs (exact, variants, Pro/Lite near-misses, accessories, refurbished, combos, an injection title, Mi/Xiaomi brand names, renamed models) × 3 runs; 300/300 over 10 runs |
+| **105/105 product matches, 0 false "same"** | `evals/match_eval.py` (AI step only): 35 hand-labelled pairs (exact, variants, Pro/Lite near-misses, accessories, refurbished, combos, an injection title, Mi/Xiaomi brand names, renamed models, model codes) × 3 runs; 350/350 over 10 runs |
+| **26/26 real products found end to end (was 21/26)** | `extension/evals/recall.ts`: 26 products hand-checked on both stores (+3 sold on one store only, 0 wrong "same"). Runs the extension's real extractor on the live page, live search, rules and AI; reports the stage that lost each miss. 16 found as "same", 10 as "check the variant" (other colour, or not provable from titles) |
 | **0 false review alarms** | `evals/trust_eval.py`: 0 of 40 genuine-looking review sets flagged; 8/8 planted-pattern cases caught; real products (boAt Airdopes: 198 + 172 reviews) clean |
 | **22/22 chat guardrail checks** | `evals/guardrail_eval.py`, 3 runs: off-topic, jailbreak, mixed questions, sizing choice, price honesty, "are reviews fake?", "buy now or wait?" |
 | **~US$0.0005 per review analysis** | Real request: ~2,600 input + ~570 output tokens, priced from the API's reported usage |
@@ -152,6 +154,7 @@ The model only writes a 1–2 sentence summary of the computed signals; a valida
 6. **Privacy leak found before launch.** Page text included "Hello, <name>" and the delivery address/PIN, and URLs carried search terms. Now page text is a fallback only (<3 reviews) with personal lines filtered in the browser, and URLs are canonical. Four tests prove it.
 7. **"Variant" mislabel.** Cycling shorts vs active shorts were called variants; tightened the verifier prompt and added the pair to the eval set.
 8. **Fixing real user feedback after launch (v0.5.2).** *Situation:* store users reported two missed matches (a Xiaomi air purifier and a Portronics car charger) and that "Analyze reviews" could be clicked while reviews were still loading. *Task:* fix without ever risking a wrong "same". *Action:* reproduced with live searches: the right listing was the #1 search result, but my rule pre-filter dropped it before the AI saw it, because Flipkart names the brand "Mi" and Amazon "Xiaomi", and "111 W" vs "111W" tokenized differently. Added a small brand-alias table and number+unit normalization, with tests from the real titles. Added both pairs to the match eval; it caught the model calling the renamed charger "same" about 1 time in 25, so I added a prompt rule (different product names are never "same") and re-ran until 300/300 with 0 false "same". Locked the Analyze button until all review pages are read. *Result:* both products now match (the charger as "check the variant", the safe answer), the eval set grew to 30 pairs, and the prompt fix shipped instantly through the backend while the UI fix went through store review.
+9. **Measuring the whole pipeline, not just the LLM (v0.6.0).** *Situation:* after story 8, I realised my match eval only tested the AI step with titles I typed in, so it measured precision but never recall; both user bugs were in an earlier stage. *Task:* find out how often the extension misses a product that really is on the other store. *Action:* built an end-to-end recall test: 26 real products hand-checked on both stores (plus 3 sold on one store only), running the extension's own extractor on live pages, live search, rules and the AI, and reporting the stage that lost each miss. Baseline v0.5.1: 21/26. Fixes driven by what it found: read the model number from each store's spec table (a fallback query, a ranking boost, given to the AI, and a veto for a different code from the same family); "X by Y" brands ("PHILIPS by Phlips"); ranking by how much of the source title a listing covers (long Amazon titles were being pushed out); a softer filter fallback; and treating Amazon's robot check as an error instead of "no match". The test also caught two regressions I introduced along the way: a wrong "same" (Philips HL7756 vs HL7707, because one Flipkart page labels the field "Model Id" with a lowercase d) and the AI calling HL7756/00 vs /01 "different". *Result:* 26/26 found, 0 wrong "same", match eval 350/350. *Lesson:* evaluate the whole pipeline, and keep every real failure as a test case.
 
 ---
 
@@ -167,7 +170,7 @@ An API key shipped in an extension is public. The backend holds the key and enfo
 It never produces them. Prices are scraped, counts and verdicts are code. For text it does write, a validator checks numbers against the evidence and falls back to a template.
 
 **How do you know the matcher works?**
-A labelled eval set of 30 tricky pairs run 3 times: 90/90, zero false "same" (and 300/300 over 10 runs). Plus a rule veto on conflicting specs, so even a model mistake can't produce a wrong "same" when specs differ.
+A labelled eval set of 35 tricky pairs: 105/105 over 3 runs, zero false "same" (350/350 over 10 runs). And an end-to-end recall test on 26 real products: 26/26 found, 0 wrong "same". Plus a rule veto on conflicting specs, so even a model mistake can't produce a wrong "same" when specs differ.
 
 **What about prompt injection?**
 Scraped text is fenced as untrusted data, the model's output is constrained to enums/schemas, and the evals include injection attempts in reviews and product titles.

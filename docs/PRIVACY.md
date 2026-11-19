@@ -1,6 +1,6 @@
 # Privacy Policy: Smart Shopping Agent
 
-_Effective 17 November 2026_
+_Effective 19 November 2026_
 
 Smart Shopping Agent is a Chrome extension that helps you evaluate products on **Amazon.in** and **Flipkart**: it summarises reviews, compares the price on the other store, flags unusual review patterns and tracks prices. This policy explains what data it handles and why. It has no accounts, no ads, no analytics or tracking, and it never sells data.
 
@@ -19,7 +19,7 @@ Only while the side panel is open on an Amazon.in or Flipkart product page, and 
 
 | Data | When | Why |
 |---|---|---|
-| Product details: title, brand, price, rating, rating breakdown, feature bullets, and the product's public customer reviews | Review analysis, chat, review-pattern check | To generate the analysis, answers and checks |
+| Product details: title, brand, manufacturer model number, price, rating, rating breakdown, feature bullets, and the product's public customer reviews | Review analysis, chat, review-pattern check | To generate the analysis, answers and checks |
 | A short fallback of the page's visible text | Only when fewer than 3 reviews could be read | So the analysis still works on unusual pages. Lines that could identify you (greetings such as "Hello, …", account menus, delivery address and PIN code) are removed in your browser before sending |
 | Product URL | With the above | Reduced to the product identifier, without search terms or tracking parameters |
 | Product titles from the other store's search results | Cross-store comparison | To decide whether a listing is the same product |
@@ -27,6 +27,10 @@ Only while the side panel is open on an Amazon.in or Flipkart product page, and 
 | The anonymous install token | Every request | To apply fair-use limits per installation |
 
 We do **not** send your name, address, account details, order history, browsing history, or any page outside Amazon.in and Flipkart product pages.
+
+## Reporting a wrong or missing match
+
+The comparison card has a "Wrong or missing match? Report it" link. It opens a GitHub issue form, prefilled with the two public product links only. Nothing is sent unless you choose to submit it on GitHub, under your own GitHub account and GitHub's terms.
 
 ## Processing by OpenAI
 

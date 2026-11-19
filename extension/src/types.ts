@@ -20,6 +20,8 @@ export interface Product {
   product_id: string;
   title: string;
   brand: string;
+  /** Manufacturer model from the spec table (e.g. "WH1000XM5/LMIN"); used only to find the product on the other site. */
+  model?: string;
   price: string;
   rating: number | null;
   rating_count: string;

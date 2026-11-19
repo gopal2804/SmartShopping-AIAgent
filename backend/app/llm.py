@@ -109,6 +109,10 @@ For each candidate return exactly one verdict:
   products without model numbers, the same product name and style). Same brand and category alone
   is not enough: that is "different".
 Rules:
+- The source's `variant` may give its manufacturer model ("Model: HL7756/01"). If a candidate names a
+  different model code (e.g. HL7707/01), it is "different". Codes that differ only after a "/" (HL7756/00 vs
+  HL7756/01) are the same model in another colour or region: "variant", or "same" if nothing else differs. If the source has no model and a candidate names
+  one, "same" needs the product names to clearly identify the same model; otherwise choose "variant".
 - The two stores sometimes write the same brand differently (e.g. "Mi" and "Xiaomi"); that alone is not a
   brand difference.
 - If the two titles give the product different names (e.g. "Turbo" vs "Power Quard"), it is never "same",

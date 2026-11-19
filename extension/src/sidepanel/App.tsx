@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { compareProduct } from "../compare";
+import { matchReportUrl } from "../compare/report";
 import { dedupeReviews } from "../content/common";
 import { priceInsight } from "../prices/insight";
 import type { PriceHistory, WatchItem } from "../prices/model";
@@ -430,7 +431,12 @@ export default function App() {
           </section>
 
           {comparison && comparison.key === productKey.current && (
-            <CompareCard comparison={comparison.value} sourcePrice={toNumber(product.price)} sourceSite={product.site} />
+            <CompareCard
+              comparison={comparison.value}
+              sourcePrice={toNumber(product.price)}
+              sourceSite={product.site}
+              sourceUrl={product.url}
+            />
           )}
 
           {prices && prices.key === productKey.current && (
@@ -479,14 +485,24 @@ export default function App() {
   );
 }
 
+function ReportMatch({ sourceUrl, shownUrl }: { sourceUrl: string; shownUrl: string | null }) {
+  return (
+    <a className="report-link tiny" href={matchReportUrl(sourceUrl, shownUrl)} target="_blank" rel="noopener noreferrer">
+      Wrong or missing match? Report it ↗
+    </a>
+  );
+}
+
 function CompareCard({
   comparison,
   sourcePrice,
   sourceSite,
+  sourceUrl,
 }: {
   comparison: Comparison;
   sourcePrice: number | null;
   sourceSite: Site;
+  sourceUrl: string;
 }) {
   const other = SITE_NAME[comparison.target];
   if (comparison.status === "searching") {
@@ -506,6 +522,7 @@ function CompareCard({
         <p className="muted small">
           No matching listing found{comparison.checked ? ` among ${comparison.checked} search results` : ""}.
         </p>
+        <ReportMatch sourceUrl={sourceUrl} shownUrl={null} />
       </section>
     );
   }
@@ -553,6 +570,7 @@ function CompareCard({
         Open on {other} ↗
       </a>
       <p className="muted tiny">Listed prices only; coupons, bank offers and sellers may differ.</p>
+      <ReportMatch sourceUrl={sourceUrl} shownUrl={listing.url} />
     </section>
   );
 }

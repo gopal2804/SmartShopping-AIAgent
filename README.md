@@ -102,11 +102,18 @@ When a product is detected, the side panel looks for the same product on the oth
 
 ```
 title ──▶ search query ──▶ other site's search page ──▶ rule pre-filter ──▶ AI verifier ──▶ rule veto ──▶ card
-          "OnePlus Nord       (scraped: title,            brand must match,    titles only,    conflicting
-           CE6 Lite 8GB        variant, price,            model numbers must   no prices:      storage/size/pack
-           128GB"              rating, URL)               overlap; top 5       same | variant  ⇒ never "same"
-                                                                               | different
++ spec-   "OnePlus Nord       (scraped: title,            brand must match,    titles + source  conflicting
+  table    CE6 Lite 8GB        variant, price,            model numbers must   model, no        storage/size/pack
+  model    128GB"              rating, URL)               overlap; top 6       prices: same |   or model code
+                                                                               variant | diff.  ⇒ never "same"
+   no "same"? ──▶ second query from the model number ("PHILIPS HL7756"), on listings not checked yet
 ```
+
+- **Model number from the spec table.** Both stores list a manufacturer model (Amazon "Item model number", Flipkart "Model Number/ID"). It ranks listings that contain it first, builds the fallback query, goes to the AI as the source's `variant`, and vetoes listings that name a different code from the same family (HL7756 vs HL7707, WH-1000XM5 vs XM6).
+- **Store naming differences are normalized:** brand aliases (Flipkart "Mi" = Amazon "Xiaomi"), "X by Y" brands ("PHILIPS by Phlips"), "111 W" = "111W", "WH-1000XM5" = "WH1000XM5".
+- **Recall fallback:** if the strict filter keeps nothing, the 3 closest listings (sharing at least half the source's words) still go to the AI. The AI and the vetoes guard against a wrong "same".
+- **Blocked searches are errors, not "no match".** If Amazon serves its robot check, the card says so instead of "no match among 0 results".
+- **"Wrong or missing match? Report it"** opens a prefilled GitHub issue with only the two product links; nothing is sent unless the user submits it.
 
 - **"Same product" needs two votes.** The verifier must say `same` *and* no hard spec (GB, ml, kg, W, pack count…) may conflict. Anything uncertain is shown as "Similar listing: check the variant" (with no price-difference claim) or "No matching listing found". A wrong "same" is treated as the worst error.
 - **The AI never sees or produces prices.** It judges identity from titles only; every price, rating and link in the card is scraped straight from the site, and links are only built on `amazon.in` / `flipkart.com` origins.
@@ -196,8 +203,9 @@ Honest limitation: history starts when you first view a product. There's no free
 
 | Check | Command | Latest result |
 |---|---|---|
-| Extension unit tests: matching rules, safe truncation, price parsing, deal verdict, alert rules, background check (fake storage) | `cd extension && npm test` | 41/41 |
-| Matcher eval: 30 labelled pairs incl. variants, Pro/Lite near-misses, accessories, refurbished, combos, injection, store-specific brand names (Mi/Xiaomi) and renamed models | `cd backend && .venv/bin/python -m evals.match_eval --runs 3` | 90/90, **0 false "same"** (300/300 over 10 runs) |
+| Extension unit tests: matching rules, model-number readers, safe truncation, price parsing, deal verdict, alert rules, background check (fake storage) | `cd extension && npm test` | 61/61 |
+| Matcher eval (AI step only): 35 labelled pairs incl. variants, Pro/Lite near-misses, accessories, refurbished, combos, injection, Mi/Xiaomi, renamed models, model codes (HL7756 vs HL7707, /00 vs /01 suffix) | `cd backend && .venv/bin/python -m evals.match_eval --runs 3` | 105/105, **0 false "same"** (350/350 over 10 runs) |
+| **End-to-end recall on real products** (live pages, live search, rules, AI): 26 products hand-checked on both stores + 3 sold on only one | backend on :8001 with a high match limit, then `cd extension && BACKEND=http://localhost:8001 npx vite-node evals/recall.ts` | **26/26 found** (16 as "same", 10 as "check the variant"), **0 wrong "same"**; v0.5.1 found 21/26 |
 | Trust eval: planted bursts/copies/rewards/unverified, edge cases, genuine sets, summary validator | `cd backend && .venv/bin/python -m evals.trust_eval` | 8/8 cases, **0/40 false alarms**, summaries 12/12 accepted |
 | Chat guardrails: off-topic, jailbreak, mixed, sizing choices, price honesty, "are reviews fake?", "buy now or wait?" (no forecasts) | `cd backend && .venv/bin/python -m evals.guardrail_eval` | 22/22 (3 runs) |
 

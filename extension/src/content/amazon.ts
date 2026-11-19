@@ -92,6 +92,31 @@ async function ensureReviewsLoaded(): Promise<void> {
   window.scrollTo(scrollX, scrollY);
 }
 
+// Product details appear as table rows (th/td) or as "Label : Value" bullet items, depending on category.
+const DETAIL_ROWS = [
+  "#productDetails_techSpec_section_1 tr",
+  "#productDetails_detailBullets_sections1 tr",
+  "#prodDetails tr",
+  "#productOverview_feature_div tr",
+  "#detailBullets_feature_div li",
+];
+const MODEL_LABEL_RE = /^(item model number|model number|model name|model)$/i;
+
+/** The manufacturer model from the product details, e.g. "WH1000XM5/LMIN". Model number beats model name. */
+export function amazonModelNumber(root: ParentNode): string {
+  const found: { label: string; value: string }[] = [];
+  for (const row of Array.from(root.querySelectorAll(DETAIL_ROWS.join(",")))) {
+    const cells = row.matches("tr")
+      ? [textOf(row.querySelector("th")), textOf(row.querySelector("td"))]
+      : textOf(row).split(/\s*:\s*/);
+    // Amazon pads labels and values with invisible direction marks.
+    const [label, value] = cells.map((c) => (c ?? "").replace(/[‎‏]/g, "").trim());
+    if (label && value && MODEL_LABEL_RE.test(label)) found.push({ label: label.toLowerCase(), value });
+  }
+  const best = found.find((f) => f.label.includes("number")) ?? found[0];
+  return (best?.value ?? "").slice(0, 100);
+}
+
 export async function extractAmazon(url: URL): Promise<Product> {
   await ensureReviewsLoaded();
   const ratingEl = document.querySelector("#acrPopover");
@@ -109,6 +134,7 @@ export async function extractAmazon(url: URL): Promise<Product> {
     brand: textOf(first(["#bylineInfo"]))
       .replace(/^(Visit the|Brand:)\s*/i, "")
       .replace(/\s*Store$/i, ""),
+    model: amazonModelNumber(document),
     price: readAmazonPrice(document),
     rating: parseRating(ratingSource),
     rating_count: textOf(first(["#acrCustomerReviewText", '[data-hook="total-review-count"]'])),

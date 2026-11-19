@@ -120,7 +120,7 @@ export interface MatchVerdictDto {
 }
 
 export async function verifyMatches(
-  source: { site: Site; title: string; brand: string },
+  source: { site: Site; title: string; brand: string; variant?: string },
   candidates: { title: string; variant: string; brand: string }[]
 ): Promise<MatchVerdictDto[]> {
   const res = await apiFetch("/api/match", jsonPost({ source, candidates }));

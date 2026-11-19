@@ -126,18 +126,54 @@ type Json = Record<string, unknown>;
 
 // Flipkart server-renders star icons as empty placeholders, but embeds the full review
 // objects (with numeric ratings) in window.__INITIAL_STATE__. Prefer that when present.
-function reviewsFromInitialState(root: Document): Review[] {
+function readInitialState(root: Document): { raw: string; state: unknown } | null {
   const script = Array.from(root.querySelectorAll("script")).find((s) =>
     s.textContent?.includes("window.__INITIAL_STATE__")
   );
-  if (!script?.textContent) return [];
-  let state: unknown;
+  if (!script?.textContent) return null;
+  const raw = script.textContent;
   try {
-    const raw = script.textContent;
-    state = JSON.parse(raw.slice(raw.indexOf("=") + 1).trim().replace(/;\s*$/, ""));
+    return { raw, state: JSON.parse(raw.slice(raw.indexOf("=") + 1).trim().replace(/;\s*$/, "")) };
   } catch {
-    return [];
+    return null;
   }
+}
+
+// Most specific first. Matched case-insensitively: pages say "Model ID" or "Model Id".
+const MODEL_LABELS = ["model number", "model id", "model name"];
+
+/**
+ * The manufacturer model from the specifications table, e.g. "WH-1000XM5". Rows are
+ * { label_0: "Model ID", label_1: ["WH-1000XM5"] } inside __INITIAL_STATE__. Flipkart swaps pages in
+ * place, so the state is ignored unless it mentions this page's pid.
+ */
+export function flipkartModelNumber(root: Document, pid: string): string {
+  const parsed = readInitialState(root);
+  if (!parsed || (pid && !parsed.raw.includes(pid))) return "";
+  const found = new Map<string, string>();
+  const textOfLabel = (label: unknown): string => {
+    const text = ((label as Json | undefined)?.value as Json | undefined)?.text;
+    return clean(Array.isArray(text) ? String(text[0] ?? "") : typeof text === "string" ? text : "");
+  };
+  const walk = (node: unknown): void => {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) return node.forEach(walk);
+    const obj = node as Json;
+    const label = textOfLabel(obj.label_0).toLowerCase();
+    if (MODEL_LABELS.includes(label)) {
+      const value = textOfLabel(obj.label_1);
+      if (value && !found.has(label)) found.set(label, value);
+      return;
+    }
+    for (const value of Object.values(obj)) walk(value);
+  };
+  walk(parsed.state);
+  return (MODEL_LABELS.map((l) => found.get(l)).find(Boolean) ?? "").slice(0, 100);
+}
+
+function reviewsFromInitialState(root: Document): Review[] {
+  const state = readInitialState(root)?.state;
+  if (!state) return [];
 
   const found: Json[] = [];
   const walk = (node: unknown): void => {
@@ -184,6 +220,7 @@ export async function extractFlipkart(url: URL): Promise<Product> {
     product_id: pid,
     title: ld?.name || fallbackTitle(),
     brand: ld?.brand ?? "",
+    model: flipkartModelNumber(document, pid),
     price: ld?.price || priceAfterHeading(document),
     rating: ld?.rating ?? null,
     rating_count: ld?.ratingCount || (document.body.innerText.match(/[\d,]+ ratings and [\d,]+ reviews/)?.[0] ?? ""),

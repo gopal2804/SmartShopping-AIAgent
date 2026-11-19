@@ -1,0 +1,307 @@
+{
+ "_about": "Real products checked by hand on both stores (2026-11-19). expect: 'same' = the exact product exists on the other store (accept = its listing IDs, any colour that matches); 'variant' = only a closely related listing exists (a 'same' would be wrong); 'none' = not sold on the other store, so any 'same' is wrong. 'colour_ok' lists other colours of the same model, which count as found if shown as 'variant'.",
+ "cases": [
+  {
+   "name": "Sony WH-1000XM5 (blue)",
+   "site": "amazon",
+   "id": "B0BZP2H373",
+   "expect": "same",
+   "accept": [
+    "ACCHGBCBER76KTUB"
+   ],
+   "colour_ok": [
+    "ACCHGBCB34ATPVM7",
+    "ACCHGBCBFWQFSGJY"
+   ]
+  },
+  {
+   "name": "Philips air fryer HD9252/90",
+   "site": "amazon",
+   "id": "B097RJ867P",
+   "expect": "same",
+   "accept": [
+    "AFRG6FGVVAAZVNXS"
+   ]
+  },
+  {
+   "name": "Prestige PIC 20 1600 W",
+   "site": "amazon",
+   "id": "B00YMJ0OI8",
+   "expect": "same",
+   "accept": [
+    "ICTE73MNXZ9STGZ6",
+    "ICTFXYZHSYSEYJKB"
+   ]
+  },
+  {
+   "name": "Logitech M331 mouse",
+   "site": "amazon",
+   "id": "B01MQ2A86A",
+   "expect": "same",
+   "accept": [
+    "ACCEXYSRFUC8AHK5",
+    "ACCHGXSDBTHZ33SG"
+   ]
+  },
+  {
+   "name": "Samsung T7 1 TB SSD",
+   "site": "amazon",
+   "id": "B0HD7JY8T5",
+   "expect": "same",
+   "accept": [
+    "ACCFTZGRJ7AG6ZJB",
+    "ACCFTZGREYWPY4GE",
+    "ACCFTZGRSNDKVCZK"
+   ]
+  },
+  {
+   "name": "Fire-Boltt Ninja Call Pro Plus",
+   "site": "amazon",
+   "id": "B0BF57RN3K",
+   "expect": "same",
+   "accept": [
+    "SMWH9QPGPP27WEYK",
+    "SMWGGZ74ARHD6ZWJ",
+    "SMWGGZ74ACG7CMZM",
+    "SMWH8VHAPWNX4BUD",
+    "SMWH8VHAZVHNCW3S"
+   ]
+  },
+  {
+   "name": "Xiaomi Air Purifier 4 Lite",
+   "site": "amazon",
+   "id": "B0C1P65Y4H",
+   "expect": "same",
+   "accept": [
+    "APFGZNV6HUBTGG8F"
+   ]
+  },
+  {
+   "name": "Portronics Car Power Quard 111W",
+   "site": "amazon",
+   "id": "B0FQ2YGPQT",
+   "expect": "same",
+   "accept": [
+    "ACCHFTZTCZCUHD8X",
+    "ACCHFTP7NH4PX5AJ"
+   ],
+   "note": "Flipkart's spec table gives Model Name 'Car Power Quard', the Amazon title's name: same product. 'variant' is still an acceptable, cautious answer."
+  },
+  {
+   "name": "Honeywell Air Touch V2",
+   "site": "amazon",
+   "id": "B09C64QJMS",
+   "expect": "same",
+   "accept": [
+    "APFG8WYKFQUAV7T7"
+   ]
+  },
+  {
+   "name": "OnePlus Nord CE6 Lite 8+128 Vivid Mint",
+   "site": "amazon",
+   "id": "B0GVYGLNH7",
+   "expect": "same",
+   "accept": [
+    "MOBHN86VFKDWVHXF"
+   ],
+   "colour_ok": [
+    "MOBHN8CA4A6Z3KMZ"
+   ]
+  },
+  {
+   "name": "Milton Thermosteel Flip Lid 1000",
+   "site": "amazon",
+   "id": "B00MIYM0VS",
+   "expect": "same",
+   "accept": [
+    "BOTGB7DBKQFXBPJW",
+    "BOTHS8HBMJMJDAZC",
+    "BOTHGWQ97FZACSDF",
+    "BOTFFUF7KHADPMKH",
+    "BOTHHGZFYFYWKTAU",
+    "BOTFAKVHZ8SQKAJP"
+   ]
+  },
+  {
+   "name": "Bajaj Majesty DX-11 iron",
+   "site": "amazon",
+   "id": "B01C8P29T4",
+   "expect": "same",
+   "accept": [
+    "IRNEFNGDVEFVM7JT",
+    "IRNFJ2YMWAXKEQ6T",
+    "IRNGBYTD2P9ZFNNX",
+    "IRNGFQFZDDXGHAS9",
+    "IRNGC3ZCXMCHZZSF",
+    "IRNGYHXEY2FJHZEZ",
+    "IRNHS8JR6ZKRS5VQ"
+   ]
+  },
+  {
+   "name": "Philips HL7756 mixer grinder",
+   "site": "amazon",
+   "id": "B01GZSQJPA",
+   "expect": "same",
+   "accept": [
+    "MIXEJ9YXZ9PAU6JU",
+    "MIXH25BEKHBTWPXP"
+   ],
+   "colour_ok": [
+    "MIXFG7VANZUHHRVY"
+   ]
+  },
+  {
+   "name": "Apple iPhone 16 128 GB (only Plus/Pro on Flipkart)",
+   "site": "amazon",
+   "id": "B0DGJHBX5Y",
+   "expect": "none"
+  },
+  {
+   "name": "Amazon Basics HDMI cable (Amazon only)",
+   "site": "amazon",
+   "id": "B0CKF1HDHL",
+   "expect": "none"
+  },
+  {
+   "name": "Sony WH-1000XM5 (black)",
+   "site": "flipkart",
+   "id": "ACCHGBCB34ATPVM7",
+   "expect": "same",
+   "accept": [
+    "B09XS7JWHH"
+   ],
+   "colour_ok": [
+    "B0BZP2H373"
+   ]
+  },
+  {
+   "name": "Philips air fryer HD9252/90",
+   "site": "flipkart",
+   "id": "AFRG6FGVVAAZVNXS",
+   "expect": "same",
+   "accept": [
+    "B097RJ867P",
+    "B09SM2K73H",
+    "B0CL43RS97"
+   ]
+  },
+  {
+   "name": "Prestige PIC 20.0 1600 W",
+   "site": "flipkart",
+   "id": "ICTE73MNXZ9STGZ6",
+   "expect": "same",
+   "accept": [
+    "B00YMJ0OI8"
+   ]
+  },
+  {
+   "name": "Logitech M331 Silent Plus (blue)",
+   "site": "flipkart",
+   "id": "ACCEXYSRFUC8AHK5",
+   "expect": "same",
+   "accept": [
+    "B01MQ2A86A",
+    "B0B1L24JW5"
+   ]
+  },
+  {
+   "name": "Samsung T7 1 TB SSD",
+   "site": "flipkart",
+   "id": "ACCFTZGRJ7AG6ZJB",
+   "expect": "same",
+   "accept": [
+    "B0HD7JY8T5",
+    "B087DFLF9S",
+    "B0HDBWMY61"
+   ]
+  },
+  {
+   "name": "Fire-Boltt Ninja Calling Pro Plus",
+   "site": "flipkart",
+   "id": "SMWGGZ74ARHD6ZWJ",
+   "expect": "same",
+   "accept": [
+    "B0BF57RN3K"
+   ],
+   "colour_ok": [
+    "B0DY82221X"
+   ]
+  },
+  {
+   "name": "Mi Smart Air Purifier 4 Lite",
+   "site": "flipkart",
+   "id": "APFGZNV6HUBTGG8F",
+   "expect": "same",
+   "accept": [
+    "B0C1P65Y4H"
+   ]
+  },
+  {
+   "name": "Portronics 111 W Turbo",
+   "site": "flipkart",
+   "id": "ACCHFTZTCZCUHD8X",
+   "expect": "same",
+   "accept": [
+    "B0FQ2YGPQT"
+   ],
+   "note": "Flipkart's spec table gives Model Name 'Car Power Quard', the Amazon title's name: same product. 'variant' is still an acceptable, cautious answer."
+  },
+  {
+   "name": "Honeywell Air Touch V2",
+   "site": "flipkart",
+   "id": "APFG8WYKFQUAV7T7",
+   "expect": "same",
+   "accept": [
+    "B09C64QJMS",
+    "B0BHWP267Z"
+   ]
+  },
+  {
+   "name": "OnePlus Nord CE6 Lite 8+128 Vivid Mint",
+   "site": "flipkart",
+   "id": "MOBHN86VFKDWVHXF",
+   "expect": "same",
+   "accept": [
+    "B0GVYGLNH7"
+   ],
+   "colour_ok": [
+    "B0GVYFM7QZ",
+    "B0GRBBPBGQ"
+   ]
+  },
+  {
+   "name": "Milton Thermosteel Flip Lid 1000",
+   "site": "flipkart",
+   "id": "BOTGB7DBKQFXBPJW",
+   "expect": "same",
+   "accept": [
+    "B00MIYM0VS",
+    "B0GBG18YL1"
+   ]
+  },
+  {
+   "name": "Bajaj Majesty DX 11 iron",
+   "site": "flipkart",
+   "id": "IRNGBYTD2P9ZFNNX",
+   "expect": "same",
+   "accept": [
+    "B01C8P29T4"
+   ]
+  },
+  {
+   "name": "Philips HL7756/01 ('PHILIPS by Phlips')",
+   "site": "flipkart",
+   "id": "MIXEJ9YXZ9PAU6JU",
+   "expect": "same",
+   "accept": [
+    "B01GZSQJPA"
+   ]
+  },
+  {
+   "name": "Flipkart SmartBuy air cooler (Flipkart only)",
+   "site": "flipkart",
+   "id": "AICFZHF7FJAHYXHK",
+   "expect": "none"
+  }
+ ]
+}
