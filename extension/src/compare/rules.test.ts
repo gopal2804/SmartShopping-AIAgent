@@ -47,6 +47,12 @@ describe("brandMatches", () => {
     expect(brandMatches("boAt", "", "Noise Buds N1")).toBe(false);
   });
 
+  it("treats store-specific brand names as one brand (Flipkart 'Mi', Amazon 'Xiaomi')", () => {
+    expect(brandMatches("Mi", "", "Xiaomi Air Purifier 4 Lite for home|360 m3/hr CADR")).toBe(true);
+    expect(brandMatches("Xiaomi", "", "Mi Smart Air Purifier 4 Lite for home360 m3/hr CADR")).toBe(true);
+    expect(brandMatches("Mi", "", "Honeywell Air Touch V2")).toBe(false);
+  });
+
   it("falls back to the first word of the title", () => {
     expect(brandMatches("", "Clovia Women Active Shorts", "Clovia High-Rise Shorts")).toBe(true);
   });
@@ -62,6 +68,28 @@ describe("preFilter", () => {
       listing("boAt Airdopes 219, 40H Battery, Free Music Streaming", "Carbon Black, True Wireless", "boAt"),
     ]);
     expect(out.map((s) => s.item.title)).toEqual(["boAt Airdopes 219, 40H Battery, Free Music Streaming"]);
+  });
+
+  // Real titles from user feedback (Nov 2026): both listings were dropped before the AI check.
+  it("keeps the Xiaomi listing for a Flipkart 'Mi' product", () => {
+    const out = preFilter(
+      "Mi Smart Air Purifier 4 Lite for home360 m3/hr CADR covers 640 sq.ft.3Stage HighEfficiencyFilter",
+      "Mi",
+      [
+        listing("Xiaomi Air Purifier 4 Lite for home|360 m3/hr CADR covers 640 sq.ft.|3Stage HighEfficiencyFilter"),
+        listing("Honeywell Air Purifier for Home, 4 Stage Filtration, Covers 388 sq.ft", "", "Honeywell"),
+      ]
+    );
+    expect(out.map((s) => s.item.title)).toEqual([
+      "Xiaomi Air Purifier 4 Lite for home|360 m3/hr CADR covers 640 sq.ft.|3Stage HighEfficiencyFilter",
+    ]);
+  });
+
+  it("matches '111 W' with '111W'", () => {
+    const out = preFilter("Portronics 111 W Turbo Car Charger (Black)", "", [
+      listing("Car Power Quard 111W Car Charger, 4 Ports Fast Car Charger, Dual 33W Type-C PD", "", "Portronics"),
+    ]);
+    expect(out).toHaveLength(1);
   });
 
   it("returns at most the requested number of candidates", () => {

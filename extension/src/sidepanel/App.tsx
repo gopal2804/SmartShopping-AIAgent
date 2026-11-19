@@ -417,8 +417,13 @@ export default function App() {
               </p>
             )}
             {!analysis && (
-              <button className="primary" onClick={runAnalysis} disabled={analyzing}>
-                {analyzing ? (extra.status === "loading" ? "Reading reviews…" : "Analyzing reviews…") : "Analyze reviews"}
+              // Locked until every review page is read, so an analysis is never based on a partial sample.
+              <button className="primary" onClick={runAnalysis} disabled={analyzing || extra.status === "loading"}>
+                {extra.status === "loading"
+                  ? "Reading all reviews first…"
+                  : analyzing
+                    ? "Analyzing reviews…"
+                    : "Analyze reviews"}
               </button>
             )}
             {analysisError && <p className="error-text">{analysisError}</p>}

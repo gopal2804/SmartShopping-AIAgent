@@ -109,6 +109,10 @@ For each candidate return exactly one verdict:
   products without model numbers, the same product name and style). Same brand and category alone
   is not enough: that is "different".
 Rules:
+- The two stores sometimes write the same brand differently (e.g. "Mi" and "Xiaomi"); that alone is not a
+  brand difference.
+- If the two titles give the product different names (e.g. "Turbo" vs "Power Quard"), it is never "same",
+  even when brand and specs match: choose "variant" if it is clearly the same kind of product, else "different".
 - Judge identity from the titles only. When unsure between "same" and "variant", choose "variant";
   when unsure whether it is the same model at all, choose "different". A wrong "same" is the worst error.
 - differences: up to 3 short phrases naming what differs (e.g. "256 GB vs 128 GB"); empty for "same".

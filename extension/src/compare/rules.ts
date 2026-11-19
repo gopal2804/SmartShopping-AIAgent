@@ -18,8 +18,12 @@ export function normalize(s: string): string {
     .trim();
 }
 
+/** "111 W" and "111W" are the same spec; join a number to its unit so both sides tokenize alike. */
+const SPACED_SPEC_RE = new RegExp(`(\\d)\\s(${SPEC_UNITS.join("|")})\\b`, "g");
+
 export function tokens(s: string): string[] {
   return normalize(s)
+    .replace(SPACED_SPEC_RE, "$1$2")
     .split(" ")
     .map((t) => t.replace(/^\.+|\.+$/g, ""))
     .filter((t) => t.length >= 2 && !STOPWORDS.has(t));
@@ -64,11 +68,20 @@ function brandOf(title: string, brand: string): string {
   return normalize(brand || title.split(/\s+/)[0] || "");
 }
 
+// The stores sometimes name the same brand differently (Flipkart "Mi", Amazon "Xiaomi").
+// Each group lists names that count as one brand. Keep it to true aliases, not sub-brands.
+const BRAND_ALIASES: string[][] = [["xiaomi", "mi"]];
+
+function brandNames(brand: string): string[] {
+  const group = BRAND_ALIASES.find((g) => g.some((name) => brand.split(" ").includes(name)));
+  return group ? [brand, ...group] : [brand];
+}
+
 export function brandMatches(sourceBrand: string, sourceTitle: string, candidateText: string): boolean {
   const brand = brandOf(sourceTitle, sourceBrand);
   if (!brand) return false;
   const hay = ` ${normalize(candidateText)} `;
-  return brand.split(" ").every((part) => hay.includes(` ${part} `));
+  return brandNames(brand).some((name) => name.split(" ").every((part) => hay.includes(` ${part} `)));
 }
 
 /** Short search query: the title before the first separator, plus storage/RAM-style specs. */

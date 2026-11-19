@@ -36,6 +36,16 @@ CASES = [
         ("Xiaomi Smart Air Purifier 4 Lite, 360 m3/hr CADR, covers 462 sq ft", "", "Xiaomi", "different"),
         ("Xiaomi Air Purifier 4 Compact Replacement HEPA Filter", "", "Xiaomi", "different"),
     ]),
+    # User feedback (Nov 2026): Flipkart names the brand "Mi", Amazon "Xiaomi".
+    ("flipkart", "Mi Smart Air Purifier 4 Lite for home360 m3/hr CADR covers 640 sq.ft.3Stage HighEfficiencyFilter 160 Sq.ft in 6 mins App+Voice controlRealtime filter usage + AQI Monitor Room Air Purifier", "Mi", [
+        ("Xiaomi Air Purifier 4 Lite for home|360 m3/hr CADR covers 640 sq.ft.|3Stage HighEfficiencyFilter| 160 Sq.ft in 6 mins | App+Voice control|Realtime filter usage + AQI Monitor|1yr replacement warranty", "", "Xiaomi", "same"),
+        ("Mijia by Xiaomi Air Purifier 4 Compact for home & bedroom |230 m3/hr CADR covers 400 Sq.ft.|3stage HighEfficiencyFilter", "", "Xiaomi", "different"),
+    ]),
+    # User feedback (Nov 2026): same brand and wattage, but the stores use different model names.
+    # Not provably the same model from titles, so "variant" (shown as "check the variant") is the safe answer.
+    ("flipkart", "Portronics 111 W Turbo Car Charger (Black)", "Portronics", [
+        ("Car Power Quard 111W Car Charger, 4 Ports Fast Car Charger, Dual 33W Type-C PD, Dual 22.5W USB-A, Charge 4 Devices Simultaneously", "", "Portronics", "variant"),
+    ]),
     ("amazon", "Clovia Women Active Shorts– High-Rise, Moisture Absorbent, Stretchable Fit (Black, M)", "Clovia", [
         ("Clovia Women High-Rise Active Shorts", "Black, M", "Clovia", "same"),
         ("Clovia Women High-Rise Active Shorts", "Black, L", "Clovia", "variant"),
@@ -92,6 +102,11 @@ async def main(runs: int) -> None:
             for src, cand, expected, got in rows:
                 mark = "PASS" if got == expected else ("FAIL!" if got == "same" else "fail")
                 print(f"{mark:5s} expected={expected:9s} got={got:9s} {cand}")
+    misses = Counter((cand, e, g) for _, cand, e, g in all_rows if e != g)
+    if misses:
+        print("\nAll misses across runs:")
+        for (cand, e, g), n in misses.most_common():
+            print(f"  {n}x expected={e} got={g} {cand}")
     total = len(all_rows)
     correct = sum(e == g for _, _, e, g in all_rows)
     false_same = sum(g == "same" and e != "same" for _, _, e, g in all_rows)
