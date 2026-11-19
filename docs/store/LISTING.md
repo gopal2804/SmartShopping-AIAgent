@@ -20,7 +20,7 @@ Open the side panel on any product page and Smart Shopping Agent:
 
 • Reads the reviews for you: a balanced sample of helpful, critical and recent reviews (up to ~300) becomes a clear verdict with pros, cons, who it's best for and how confident it is.
 • Answers your questions: "Is the battery good?", "Should I order M or L?" Answers cite what reviewers actually said, and it sticks to the product.
-• Compares stores: finds the same product on the other site and shows the price difference. It only says "same product" when the model numbers and specs match; close-but-different variants are labelled as such.
+• Compares stores: finds the same product on the other site and shows the price difference. It reads the manufacturer's model number from both stores, handles brands the stores name differently (like Mi and Xiaomi), and only says "same product" when the model and specs match; other colours or close variants are labelled "check the variant". Spotted a wrong or missing match? One tap on "Report it" tells us.
 • Checks the reviews themselves: flags unusual patterns such as bursts of 5-star reviews, copy-pasted wording, many unverified buyers, or reviewers describing rewards for ratings. These are signals, never accusations.
 • Tracks prices: builds a price history as you browse, tells you when a price is genuinely good compared with what it has seen, and sends a notification when a watched product drops.
 
