@@ -414,7 +414,7 @@ export default function App() {
             {extra.blocked === "login" && (
               <p className="hint small">
                 Amazon shows its full review list only to signed-in users. Sign in to Amazon in this browser, then ask
-                again to include up to ~200 reviews.
+                again to include up to ~300 reviews.
               </p>
             )}
             {!analysis && (
@@ -487,8 +487,8 @@ export default function App() {
 
 function ReportMatch({ sourceUrl, shownUrl }: { sourceUrl: string; shownUrl: string | null }) {
   return (
-    <a className="report-link tiny" href={matchReportUrl(sourceUrl, shownUrl)} target="_blank" rel="noopener noreferrer">
-      Wrong or missing match? Report it ↗
+    <a className="report-link" href={matchReportUrl(sourceUrl, shownUrl)} target="_blank" rel="noopener noreferrer">
+      <span aria-hidden="true">⚑</span> Wrong or missing match? Report it ↗
     </a>
   );
 }

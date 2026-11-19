@@ -24,7 +24,7 @@ class Product(BaseModel):
     rating_count: str = Field("", max_length=100)
     rating_breakdown: str = Field("", max_length=200)
     features: List[str] = Field(default_factory=list, max_length=30)
-    reviews: List[Review] = Field(default_factory=list, max_length=300)
+    reviews: List[Review] = Field(default_factory=list, max_length=350)
     page_text: str = Field("", max_length=20000)
 
 

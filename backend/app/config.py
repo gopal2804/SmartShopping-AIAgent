@@ -26,7 +26,8 @@ if not APP_SECRET:
 DAILY_LIMITS: Dict[str, int] = {
     "analyze": _int("LIMIT_ANALYZE_PER_DAY", 20),
     "chat": _int("LIMIT_CHAT_PER_DAY", 100),
-    "match": _int("LIMIT_MATCH_PER_DAY", 60),
+    # Up to 2 match calls per product since v0.6.0 (a second search by model number).
+    "match": _int("LIMIT_MATCH_PER_DAY", 150),
     "trust": _int("LIMIT_TRUST_PER_DAY", 60),
 }
 REGISTRATIONS_PER_IP_PER_DAY = _int("LIMIT_REGISTRATIONS_PER_IP_PER_DAY", 10)

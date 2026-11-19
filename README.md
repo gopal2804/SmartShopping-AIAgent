@@ -92,7 +92,7 @@ Then in Chrome: open `chrome://extensions`, turn on **Developer mode**, click **
 2. Click the extension icon to open the side panel.
 3. Click **Analyze reviews**, then ask questions in the chat.
 
-When you analyze or ask, the extension also fetches up to 20 review pages in the background (~200 reviews, ~10–15 s), using your own browser session. Because "most helpful" sorting skews positive, the pages are split into a balanced sample: 10 most-helpful, 6 critical (lowest-rated first) and 4 most-recent. Each review is tagged with its `source`, and the product's overall star breakdown is sent too, so the model judges *what* goes wrong from critical reviews and *how often* from the real rating distribution. Flipkart works signed-out; Amazon only serves its review list to signed-in users, so sign in to Amazon for the deeper read. The page limit is `MAX_REVIEW_PAGES` in `extension/src/content/common.ts`.
+When you analyze or ask, the extension also fetches up to 30 review pages in the background (~300 reviews, ~15–25 s), using your own browser session. Because "most helpful" sorting skews positive, the pages are split into a balanced sample: 15 most-helpful, 9 critical (lowest-rated first) and 6 most-recent. Each review is tagged with its `source`, and the product's overall star breakdown is sent too, so the model judges *what* goes wrong from critical reviews and *how often* from the real rating distribution. Flipkart works signed-out; Amazon only serves its review list to signed-in users, so sign in to Amazon for the deeper read. The page limit is `MAX_REVIEW_PAGES` in `extension/src/content/common.ts`.
 
 ## Cross-site comparison
 
@@ -127,7 +127,7 @@ Live example (Nov 2026): OnePlus Nord CE6 Lite 8 GB/128 GB Vivid Mint was ₹30,
 
 ![Side panel on an Amazon.in screen protector: Review trust "No unusual patterns" across 111 reviews, with all four checks passed (no bursts among 50 dated 5-star reviews, no near-duplicate wording, 100% verified, no reward mentions), plus "No matching listing found" on Flipkart and a "Consider alternatives" analysis](docs/screenshots/review-trust.png)
 
-Once the review sample has loaded (~200 reviews), the side panel shows a **Review trust** card. The patterns are measured by plain code in [`backend/app/trust.py`](backend/app/trust.py), so every number can be traced back to the reviews; the model only writes a one-line summary of those numbers.
+Once the review sample has loaded (~300 reviews), the side panel shows a **Review trust** card. The patterns are measured by plain code in [`backend/app/trust.py`](backend/app/trust.py), so every number can be traced back to the reviews; the model only writes a one-line summary of those numbers.
 
 | Signal | Flagged when | Guard against false alarms |
 |---|---|---|
@@ -270,7 +270,7 @@ The backend pays for every model call with the project's OpenAI key, so a public
 |---|---|---|
 | **Install token** | On first use the extension calls `POST /api/register` and gets an anonymous token signed with `APP_SECRET` (HMAC). Every AI route requires it (`Authorization: Bearer …`); missing or forged tokens get 401. If the server forgets a token (e.g. new secret), the extension re-registers once automatically. | `APP_SECRET` (required in production) |
 | **Registration limit** | New tokens per client IP per day, so tokens can't be minted in bulk. | 10 (`LIMIT_REGISTRATIONS_PER_IP_PER_DAY`) |
-| **Daily limits per install** | Counted per Indian calendar day (resets at midnight IST); 429 with a friendly message when reached. | analyze 20 · chat 100 · match 60 · trust 60 (`LIMIT_*_PER_DAY`) |
+| **Daily limits per install** | Counted per Indian calendar day (resets at midnight IST); 429 with a friendly message when reached. | analyze 20 · chat 100 · match 150 · trust 60 (`LIMIT_*_PER_DAY`) |
 | **Monthly spend cap** | Each OpenAI response's reported token usage is priced and added up; once the month's spend reaches the cap, AI routes return 503 "paused for the rest of the month". | US$10 (`MONTHLY_BUDGET_USD`, prices in `PRICE_*_PER_M`) |
 | **Safe errors** | Clients get `{code, message}`; exception details stay in server logs. | — |
 | **Usage report** | `GET /admin/usage` with `X-Admin-Token`: this month's spend, model calls, tokens, today's requests per feature. Disabled unless set. | `ADMIN_TOKEN` |
@@ -299,7 +299,7 @@ Users pay nothing. Everything below is billed to the project owner.
 - **Installation:** **public Chrome Web Store listing.** Requires a Chrome developer account (one-time US$5), a privacy policy, a single-purpose description and justification for each permission and host permission.
 - **Backend hosting:** **Render**, deployed from this GitHub repo, OpenAI key stored as a Render secret. **Free plan to start**, upgrade to Starter + disk (~US$7.25/month) before sharing widely.
 
-Defaults in use (can be changed any time in Render → Environment): daily limits analyze 20 · chat 100 · match 60 · trust 60 per install, US$10 monthly cap, no custom domain. The store listing was submitted on 2026-11-17 and approved on 2026-11-18 (about one day).
+Defaults in use (can be changed any time in Render → Environment): daily limits analyze 20 · chat 100 · match 150 · trust 60 per install, US$10 monthly cap, no custom domain. The store listing was submitted on 2026-11-17 and approved on 2026-11-18 (about one day).
 
 ## Roadmap
 

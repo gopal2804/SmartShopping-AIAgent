@@ -1,7 +1,9 @@
 import type { Review, ReviewSource } from "../types";
 
-export const MAX_REVIEWS = 250;
-export const MAX_REVIEW_PAGES = 20;
+// ~10 reviews per page. 30 pages ≈ 300 reviews in ~15–25 s; more pages mean a longer wait before
+// "Analyze" unlocks, a bigger prompt on every chat message, and a higher chance of Amazon's robot check.
+export const MAX_REVIEWS = 300;
+export const MAX_REVIEW_PAGES = 30;
 const MAX_PAGE_TEXT = 15000;
 export const PAGE_DELAY_MS = 400;
 

@@ -10,7 +10,7 @@ A guide to explaining this project in interviews: the pitch, how it works, the d
 
 ### 30 seconds
 
-> "I built an AI shopping assistant for Amazon.in and Flipkart as a Chrome extension with a Python FastAPI backend on OpenAI. On any product page it reads up to ~200 reviews and gives an honest verdict, answers questions about the product, finds the same product on the other store to compare prices, flags unusual review patterns, and tracks prices with drop alerts. The stores' own assistants have no reason to send you to a competitor; this one is neutral. The main engineering idea is that code computes every number and the model only judges or narrates, with evals to prove it: 0 wrong product matches in 350 judgements, 26/26 real products found across both stores end to end, and zero false review alarms. It's deployed with CI/CD, rate limits and a spend cap, and published on the Chrome Web Store."
+> "I built an AI shopping assistant for Amazon.in and Flipkart as a Chrome extension with a Python FastAPI backend on OpenAI. On any product page it reads up to ~300 reviews and gives an honest verdict, answers questions about the product, finds the same product on the other store to compare prices, flags unusual review patterns, and tracks prices with drop alerts. The stores' own assistants have no reason to send you to a competitor; this one is neutral. The main engineering idea is that code computes every number and the model only judges or narrates, with evals to prove it: 0 wrong product matches in 350 judgements, 26/26 real products found across both stores end to end, and zero false review alarms. It's deployed with CI/CD, rate limits and a spend cap, and published on the Chrome Web Store."
 
 ### 2 minutes (add these)
 
@@ -55,7 +55,7 @@ Background service worker ── chrome.alarms every 6 h ── offscreen docume
 
 ### 3.1 Review analysis
 
-- **Data:** up to 20 review pages (~200 reviews). Amazon ignores `?pageNumber=`, so the extension replays the site's own "Show more" request (`nextPageToken` + CSRF token from the page). Flipkart's class names are obfuscated, so it reads `window.__INITIAL_STATE__` and JSON-LD instead of CSS classes.
+- **Data:** up to 30 review pages (~300 reviews; was 20 pages/~200 until v0.6.1). If the prompt would be too long, review bodies are shortened rather than the JSON cut. Amazon ignores `?pageNumber=`, so the extension replays the site's own "Show more" request (`nextPageToken` + CSRF token from the page). Flipkart's class names are obfuscated, so it reads `window.__INITIAL_STATE__` and JSON-LD instead of CSS classes.
 - **Balanced sampling:** 50% most-helpful, 30% critical, 20% recent, each review tagged with its source, plus the overall star breakdown. *Why:* if you only read critical reviews, every product looks bad; the model needs to know complaints are, say, 12% of ratings.
 - **Output:** structured (Pydantic schema via `responses.parse`): verdict, pros/cons with how often they're mentioned, best-for, confidence.
 - **Fallback:** if fewer than 3 reviews are found, filtered page text is sent instead (personal lines like "Hello, <name>" and delivery address are stripped in the browser first).
@@ -125,7 +125,7 @@ The model only writes a 1–2 sentence summary of the computed signals; a valida
 | **~US$0.0005 per review analysis** | Real request: ~2,600 input + ~570 output tokens, priced from the API's reported usage |
 | **0.7 s median time to first word** | `evals/model_bench.py`, 5 runs per model (down from ~32 s originally) |
 | **Model choice (`gpt-6-luna`)** | Benchmarked 7 models on this app's workload: sizing answer followed evidence 5/5 vs 2/5, shorter answers, cheaper |
-| **~200 reviews** | Up to 20 pages, balanced 50/30/20 helpful/critical/recent |
+| **~300 reviews** | Up to 30 pages, balanced 50/30/20 helpful/critical/recent |
 | **Tests** | 41 extension unit tests (vitest), 10 backend API-protection tests (pytest), all in CI |
 
 ---
@@ -133,7 +133,7 @@ The model only writes a 1–2 sentence summary of the computed signals; a valida
 ## 6. Production and security
 
 - **Install tokens:** `POST /api/register` returns `v1.<id>.<timestamp>.<HMAC>` signed with a server secret; all AI routes require it. Registration is limited per IP per day so tokens can't be minted in bulk. On 401 the extension re-registers once.
-- **Limits:** per install per day (IST): analyze 20, chat 100, match 60, trust 60. Stored in SQLite.
+- **Limits:** per install per day (IST): analyze 20, chat 100, match 150 (a product can need 2 match calls), trust 60. Stored in SQLite.
 - **Spend cap:** every OpenAI response's token usage is priced and summed; at US$10/month AI routes return a friendly "paused" message. Plus a budget on the OpenAI project as a backstop.
 - **Errors:** clients get `{code, message}`; exception text stays in server logs.
 - **CORS:** only `chrome-extension://` origins.

@@ -18,7 +18,7 @@ MODEL = os.getenv("OPENAI_MODEL", "gpt-6-luna")
 # needs "minimal"). Analysis runs once per product, so it can afford "low". See evals/model_bench.py.
 CHAT_REASONING_EFFORT = os.getenv("OPENAI_CHAT_REASONING_EFFORT", "none")
 ANALYSIS_REASONING_EFFORT = os.getenv("OPENAI_ANALYSIS_REASONING_EFFORT", "low")
-MAX_CONTEXT_CHARS = 160000
+MAX_CONTEXT_CHARS = 200000
 
 logger = logging.getLogger("smart_shopping_agent.llm")
 
@@ -223,6 +223,12 @@ def build_product_context(product: Product) -> str:
         "reviews": [r.model_dump(exclude_none=True) for r in product.reviews],
     }
     text = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    # Too long for the prompt: shorten review bodies (keeping every review) instead of cutting the JSON.
+    for cap in (1500, 800, 400, 200):
+        if len(text) <= MAX_CONTEXT_CHARS:
+            break
+        data["reviews"] = [{**r, "body": r.get("body", "")[:cap]} for r in data["reviews"]]
+        text = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     # Selectors can break when the site changes layout; raw page text lets the model recover.
     if len(product.reviews) < 3 and product.page_text:
         text += "\n\nRaw page text (reviews may be inside):\n" + product.page_text
