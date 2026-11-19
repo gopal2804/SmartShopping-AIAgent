@@ -11,7 +11,7 @@ Everything to paste into the [Chrome Web Store Developer Dashboard](https://chro
 
 **Category:** Shopping  **Language:** English
 
-**Description:** (update or remove "NEW IN THIS VERSION" on each release)
+**Description:** (on each release, change "NEW IN VERSION x.y.z" to the new version and its changes)
 
 ```
 Shop on Amazon.in and Flipkart with a second opinion that works for you, not the store.
@@ -25,7 +25,7 @@ Open the side panel on any Amazon.in or Flipkart product page:
 ✔ Review trust check: flags unusual patterns such as bursts of 5-star reviews, copy-pasted wording or many unverified buyers. Signals, never accusations.
 ✔ Price tracking and alerts: builds a price history as you browse, tells you when a price is genuinely good, and notifies you when a watched product drops.
 
-NEW IN THIS VERSION
+NEW IN VERSION 0.6.1
 • Reads up to ~300 reviews (was ~200) for a more complete picture.
 • Smarter store matching: uses the manufacturer's model number from both stores, handles brands the stores name differently (like Mi and Xiaomi), and only says "same product" when the model and specs match.
 • New "Report it" button on the comparison card: flag a wrong or missing match in one tap.
