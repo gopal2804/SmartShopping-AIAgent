@@ -11,23 +11,31 @@ Everything to paste into the [Chrome Web Store Developer Dashboard](https://chro
 
 **Category:** Shopping  **Language:** English
 
-**Description:**
+**Description:** (update or remove "NEW IN THIS VERSION" on each release)
 
 ```
 Shop on Amazon.in and Flipkart with a second opinion that works for you, not the store.
 
-Open the side panel on any product page and Smart Shopping Agent:
+WHAT IT DOES
+Open the side panel on any Amazon.in or Flipkart product page:
 
-• Reads the reviews for you: a balanced sample of helpful, critical and recent reviews (up to ~300) becomes a clear verdict with pros, cons, who it's best for and how confident it is.
-• Answers your questions: "Is the battery good?", "Should I order M or L?" Answers cite what reviewers actually said, and it sticks to the product.
-• Compares stores: finds the same product on the other site and shows the price difference. It reads the manufacturer's model number from both stores, handles brands the stores name differently (like Mi and Xiaomi), and only says "same product" when the model and specs match; other colours or close variants are labelled "check the variant". Spotted a wrong or missing match? One tap on "Report it" tells us.
-• Checks the reviews themselves: flags unusual patterns such as bursts of 5-star reviews, copy-pasted wording, many unverified buyers, or reviewers describing rewards for ratings. These are signals, never accusations.
-• Tracks prices: builds a price history as you browse, tells you when a price is genuinely good compared with what it has seen, and sends a notification when a watched product drops.
+✔ Review analysis: reads a balanced sample of helpful, critical and recent reviews and gives a clear verdict with pros, cons, who it's best for and how confident it is.
+✔ Ask about the product: "Is the battery good?", "Should I order M or L?" Answers cite what reviewers actually said.
+✔ Compare prices across stores: finds the same product on the other site and shows the price difference. Close-but-different variants are clearly labelled.
+✔ Review trust check: flags unusual patterns such as bursts of 5-star reviews, copy-pasted wording or many unverified buyers. Signals, never accusations.
+✔ Price tracking and alerts: builds a price history as you browse, tells you when a price is genuinely good, and notifies you when a watched product drops.
 
-Private by design: price history and your watchlist stay in your browser. No account, no ads, no tracking. Numbers like prices, counts and verdicts are computed by code, not invented by AI, and the assistant never predicts future prices.
+NEW IN THIS VERSION
+• Reads up to ~300 reviews (was ~200) for a more complete picture.
+• Smarter store matching: uses the manufacturer's model number from both stores, handles brands the stores name differently (like Mi and Xiaomi), and only says "same product" when the model and specs match.
+• New "Report it" button on the comparison card: flag a wrong or missing match in one tap.
+• "Analyze reviews" now waits until all reviews are read, so the verdict always uses the full sample.
+• Clearer message when a store temporarily blocks a search, instead of "no match found".
+
+PRIVATE BY DESIGN
+Price history and your watchlist stay in your browser. No account, no ads, no tracking. Prices, counts and verdicts are computed by code, not invented by AI, and it never predicts future prices.
 
 Works on www.amazon.in and www.flipkart.com product pages.
-
 Open source: https://github.com/gopal2804/SmartShopping-AIAgent
 ```
 
